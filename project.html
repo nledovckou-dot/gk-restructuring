@@ -716,21 +716,6 @@ function renderDashboard(){
   });
   h+='</div>';
 
-  // Key transitions summary
-  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">';
-  h+='<div class="dash-progress"><h3>Ключевые переходы людей</h3>';
-  h+='<table class="data-table"><thead><tr><th>Кто</th><th>Было</th><th>Станет</th></tr></thead><tbody>';
-  STATE.delta.people.filter(p=>['Никита','Владимир','Екатерина','Иван'].includes(p.name)).forEach(p=>{
-    h+='<tr><td style="font-weight:600">'+p.name+'</td><td style="color:var(--text3)">'+p.asIs.substring(0,30)+'</td><td style="color:var(--green)">'+p.target+'</td></tr>';
-  });
-  h+='</tbody></table></div>';
-  h+='<div class="dash-progress"><h3>Риски (топ-3)</h3>';
-  STATE.risks.slice(0,3).forEach(r=>{
-    const col=r.level==='high'?'var(--red)':r.level==='medium'?'var(--orange)':'var(--green)';
-    h+='<div style="padding:8px 0;border-bottom:1px solid var(--border)"><span style="color:'+col+';font-weight:700;font-size:11px;text-transform:uppercase">'+r.level+'</span> <span style="font-size:13px;margin-left:6px">'+r.title+'</span></div>';
-  });
-  h+='</div></div>';
-
   document.getElementById('dashboard-content').innerHTML=h;
 }
 
