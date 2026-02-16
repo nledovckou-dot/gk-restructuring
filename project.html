@@ -689,7 +689,7 @@ function renderDashboard(){
   // Top cards
   h+='<div class="dash-grid">';
   h+='<div class="dash-card"><div class="dc-value" style="color:var(--gold)">'+avgProgress+'%</div><div class="dc-label">Общий прогресс</div><div class="dc-sub">'+completedTasks+' из '+totalTasks+' задач</div></div>';
-  h+='<div class="dash-card"><div class="dc-value" style="color:var(--green)">7</div><div class="dc-label">Фаз</div><div class="dc-sub">18 месяцев</div></div>';
+  h+='<div class="dash-card"><div class="dc-value" style="color:var(--green)">'+g.phases.length+'</div><div class="dc-label">Фаз</div><div class="dc-sub">'+g.months.length+' месяцев</div></div>';
   h+='<div class="dash-card"><div class="dc-value" style="color:var(--blue)">'+totalObjects+'</div><div class="dc-label">Объектов</div><div class="dc-sub">~31 000 м²</div></div>';
   h+='<div class="dash-card"><div class="dc-value" style="color:var(--purple)">'+(totalBudget/1e6).toFixed(1)+'М</div><div class="dc-label">Бюджет (руб)</div><div class="dc-sub">0.03% от портфеля</div></div>';
   h+='</div>';
@@ -894,13 +894,23 @@ function renderGantt(){
 
   // phases + tasks
   g.phases.forEach((phase,pi)=>{
+    const phaseTotal=phase.tasks.length;
+    const phaseAvg=phaseTotal?Math.round(phase.tasks.reduce((s,t)=>s+(t.progress||0),0)/phaseTotal):0;
+    const phaseDone=phase.tasks.filter(t=>(t.progress||0)>=100).length;
+    const phColor=phaseAvg>=100?'var(--green)':phaseAvg>0?'var(--gold)':'var(--text3)';
     html+='<div class="gantt-label phase-row" style="cursor:pointer;justify-content:space-between" ondblclick="editGanttPhase('+pi+')">';
-    html+='<span style="flex:1">'+phase.name+'</span>';
+    html+='<span style="flex:1;display:flex;align-items:center;gap:8px">'+phase.name;
+    html+='<span style="font-size:10px;color:'+phColor+';white-space:nowrap" title="'+phaseDone+' из '+phaseTotal+' задач завершено">'+phaseAvg+'% ('+phaseDone+'/'+phaseTotal+')</span></span>';
     html+='<span style="display:flex;gap:2px;align-items:center">';
     if(pi>0) html+='<button class="gantt-move-btn" title="Фазу вверх" onclick="event.stopPropagation();moveGanttPhase('+pi+',-1)">&#9650;</button>';
     if(pi<g.phases.length-1) html+='<button class="gantt-move-btn" title="Фазу вниз" onclick="event.stopPropagation();moveGanttPhase('+pi+',1)">&#9660;</button>';
     html+='</span></div>';
-    for(let i=0;i<M;i++) html+='<div class="gantt-cell phase-row"></div>';
+    // phase progress bar across columns
+    const phBarW=phaseAvg+'%';
+    for(let i=0;i<M;i++){
+      if(i===0) html+='<div class="gantt-cell phase-row" style="position:relative;overflow:visible" colspan="'+M+'"><div style="position:absolute;top:0;left:0;height:100%;width:'+phBarW+';background:'+phColor+';opacity:0.1;border-radius:4px;pointer-events:none"></div></div>';
+      else html+='<div class="gantt-cell phase-row"></div>';
+    }
     rowIndex++;
 
     phase.tasks.forEach((task,ti)=>{
