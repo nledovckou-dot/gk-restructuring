@@ -235,7 +235,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
 </head>
 <body>
 <nav id="sidebar">
-  <h1>Проект реструктуризации<br>ГК → Family Office <span style="font-size:10px;color:var(--text3);font-weight:400">v3.4</span></h1>
+  <h1>Проект реструктуризации<br>ГК → Family Office <span style="font-size:10px;color:var(--text3);font-weight:400">v3.5</span></h1>
   <div class="nav-group">
     <div class="nav-group-title">Обзор</div>
     <button class="nav-btn active" data-section="dashboard">Dashboard</button>
@@ -874,7 +874,10 @@ function renderGantt(){
   const labelW=320;
   let html='<div class="gantt-wrap"><div class="gantt-toolbar">';
   html+='<button class="'+(g.showDeps?'active':'')+'" onclick="STATE.gantt.showDeps=!STATE.gantt.showDeps;renderGantt()">Зависимости</button>';
-  html+='<span style="font-size:11px;color:var(--text3);margin-left:8px">Drag = двигать | Правый край = длительность | Двойной клик = редактировать</span>';
+  html+='<button onclick="addGanttPhase()">+ Фаза</button>';
+  html+='<button onclick="addGanttColumn()">+ Столбец</button>';
+  html+='<button onclick="removeGanttColumn()">− Столбец</button>';
+  html+='<span style="font-size:11px;color:var(--text3);margin-left:8px">Двойной клик на фазу = редактировать</span>';
   html+='</div><div class="gantt-scroll" id="gantt-scroll"><div class="gantt-grid" id="gantt-grid" style="grid-template-columns:'+labelW+'px repeat('+M+',1fr)">';
 
   // header with milestones — click to rename months
@@ -891,7 +894,12 @@ function renderGantt(){
 
   // phases + tasks
   g.phases.forEach((phase,pi)=>{
-    html+='<div class="gantt-label phase-row">'+phase.name+'</div>';
+    html+='<div class="gantt-label phase-row" style="cursor:pointer;justify-content:space-between" ondblclick="editGanttPhase('+pi+')">';
+    html+='<span style="flex:1">'+phase.name+'</span>';
+    html+='<span style="display:flex;gap:2px;align-items:center">';
+    if(pi>0) html+='<button class="gantt-move-btn" title="Фазу вверх" onclick="event.stopPropagation();moveGanttPhase('+pi+',-1)">&#9650;</button>';
+    if(pi<g.phases.length-1) html+='<button class="gantt-move-btn" title="Фазу вниз" onclick="event.stopPropagation();moveGanttPhase('+pi+',1)">&#9660;</button>';
+    html+='</span></div>';
     for(let i=0;i<M;i++) html+='<div class="gantt-cell phase-row"></div>';
     rowIndex++;
 
@@ -1125,6 +1133,60 @@ function editGanttMonth(mi){
     STATE.gantt.months[mi]=newName;
     renderGantt();syncToFirebase();
   }
+}
+
+function editGanttPhase(pi){
+  const phase=STATE.gantt.phases[pi];
+  const newName=prompt('Название фазы:',phase.name);
+  if(newName===null)return;
+  if(newName===''){
+    if(confirm('Удалить фазу «'+phase.name+'» и все её задачи?')){
+      STATE.gantt.phases.splice(pi,1);
+      renderGantt();syncToFirebase();
+    }
+    return;
+  }
+  if(newName!==phase.name){ phase.name=newName; renderGantt();syncToFirebase(); }
+}
+
+function moveGanttPhase(pi,dir){
+  const phases=STATE.gantt.phases;
+  const newPi=pi+dir;
+  if(newPi<0||newPi>=phases.length)return;
+  const tmp=phases[pi]; phases[pi]=phases[newPi]; phases[newPi]=tmp;
+  renderGantt();syncToFirebase();
+}
+
+function addGanttPhase(){
+  const name=prompt('Название новой фазы:','Фаза '+ STATE.gantt.phases.length);
+  if(!name)return;
+  const clsIdx=STATE.gantt.phases.length % 7;
+  STATE.gantt.phases.push({ name:name, cls:'p'+clsIdx, tasks:[
+    { name:'Новая задача', owner:'—', s:0, d:1, progress:0, deps:[] }
+  ]});
+  renderGantt();syncToFirebase();
+}
+
+function addGanttColumn(){
+  const nextNum=STATE.gantt.months.length+1;
+  const name=prompt('Название нового столбца:','Мес '+nextNum);
+  if(!name)return;
+  STATE.gantt.months.push(name);
+  renderGantt();syncToFirebase();
+}
+
+function removeGanttColumn(){
+  if(STATE.gantt.months.length<=1){ alert('Нельзя удалить последний столбец'); return; }
+  const last=STATE.gantt.months[STATE.gantt.months.length-1];
+  if(!confirm('Удалить столбец «'+last+'»?'))return;
+  STATE.gantt.months.pop();
+  // trim tasks that extend beyond
+  const maxM=STATE.gantt.months.length;
+  STATE.gantt.phases.forEach(ph=>ph.tasks.forEach(t=>{
+    if(t.s>=maxM) t.s=maxM-1;
+    if(t.s+t.d>maxM) t.d=maxM-t.s;
+  }));
+  renderGantt();syncToFirebase();
 }
 
 // ============================================================
