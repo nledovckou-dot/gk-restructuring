@@ -194,6 +194,18 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
 .btn-secondary{background:var(--card);color:var(--text2);border:1px solid var(--border)}
 .btn-danger{background:var(--red2);color:#fff}
 
+/* === SYNC INDICATOR === */
+#sync-bar{display:flex;align-items:center;gap:6px;padding:8px 0;font-size:11px;color:var(--text3)}
+#sync-bar .sync-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;transition:background .3s}
+#sync-bar.saved .sync-dot{background:var(--green)}
+#sync-bar.synced .sync-dot{background:var(--cyan)}
+#sync-bar.saving .sync-dot{background:var(--gold);animation:pulse 1s infinite}
+#sync-bar.error .sync-dot{background:var(--red)}
+#sync-bar.offline .sync-dot{background:var(--orange)}
+#sync-bar.connecting .sync-dot{background:var(--text3);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+#online-users{font-size:10px;color:var(--text3);margin-top:2px}
+
 /* === PRINT === */
 @media print{
   #sidebar{display:none}
@@ -236,6 +248,8 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
     <button class="nav-btn" data-section="frameworks">Фреймворки</button>
   </div>
   <div id="sidebar-footer">
+    <div id="sync-bar" class="connecting"><div class="sync-dot"></div><span id="sync-text">Подключение...</span></div>
+    <div id="online-users"></div>
     <button onclick="exportJSON()">Скачать JSON</button>
     <button onclick="document.getElementById('imp').click()">Загрузить JSON</button>
     <input type="file" id="imp" accept=".json" style="display:none" onchange="importJSON(event)">
@@ -621,7 +635,7 @@ function exportJSON(){
 function importJSON(e){
   const f=e.target.files[0];if(!f)return;
   const r=new FileReader();
-  r.onload=ev=>{try{Object.assign(STATE,JSON.parse(ev.target.result));renderAll();alert('Загружено!')}catch(err){alert('Ошибка: '+err.message)}};
+  r.onload=ev=>{try{Object.assign(STATE,JSON.parse(ev.target.result));renderAll(true);syncToFirebase();alert('Загружено!')}catch(err){alert('Ошибка: '+err.message)}};
   r.readAsText(f);
 }
 
@@ -812,6 +826,7 @@ function saveTreeNode(treeName,nodeId){
   }
   closeModal();
   renderTree('tree-'+treeName,STATE.trees[treeName],treeName);
+  syncToFirebase();
 }
 
 function deleteTreeNode(treeName,nodeId){
@@ -820,6 +835,7 @@ function deleteTreeNode(treeName,nodeId){
   if(parent&&parent.children){parent.children=parent.children.filter(c=>c.id!==nodeId)}
   closeModal();
   renderTree('tree-'+treeName,STATE.trees[treeName],treeName);
+  syncToFirebase();
 }
 
 function addTreeChild(treeName,parentId){
@@ -829,6 +845,7 @@ function addTreeChild(treeName,parentId){
   node.children.push({id:newId,label:'Новый узел',sub:'',color:node.color||''});
   closeModal();
   renderTree('tree-'+treeName,STATE.trees[treeName],treeName);
+  syncToFirebase();
 }
 
 // ============================================================
@@ -988,7 +1005,7 @@ function startGanttDrag(e,pi,ti){
     task.s=Math.max(0,Math.min(STATE.gantt.months.length-task.d, origS+dc));
     renderGantt();
   }
-  function onUp(){document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp)}
+  function onUp(){document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);syncToFirebase()}
   document.addEventListener('mousemove',onMove);
   document.addEventListener('mouseup',onUp);
 }
@@ -1008,7 +1025,7 @@ function startGanttResize(e,pi,ti){
     task.d=Math.max(1,Math.min(STATE.gantt.months.length-task.s, origD+dc));
     renderGantt();
   }
-  function onUp(){document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp)}
+  function onUp(){document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);syncToFirebase()}
   document.addEventListener('mousemove',onMove);
   document.addEventListener('mouseup',onUp);
 }
@@ -1056,19 +1073,19 @@ function saveGanttTask(pi,ti){
   });
   t.deps=deps;
 
-  closeModal();renderGantt();renderDashboard();
+  closeModal();renderGantt();renderDashboard();syncToFirebase();
 }
 
 function deleteGanttTask(pi,ti){
   STATE.gantt.phases[pi].tasks.splice(ti,1);
-  closeModal();renderGantt();renderDashboard();
+  closeModal();renderGantt();renderDashboard();syncToFirebase();
 }
 
 function addGanttTask(pi,afterTi){
   const phase=STATE.gantt.phases[pi];
   const prev=phase.tasks[afterTi];
   phase.tasks.splice(afterTi+1,0,{name:'Новая задача',owner:'TBD',s:prev?prev.s+prev.d:0,d:1,progress:0,deps:[]});
-  renderGantt();
+  renderGantt();syncToFirebase();
 }
 
 // ============================================================
@@ -1081,7 +1098,7 @@ function renderDelta(){
   d.people.forEach((p,i)=>{
     h+='<tr><td style="font-weight:600">'+p.name+'</td>';
     ['asIs','transition','target'].forEach(k=>{
-      h+='<td contenteditable="true" onblur="STATE.delta.people['+i+'].'+k+'=this.textContent">'+p[k]+'</td>';
+      h+='<td contenteditable="true" onblur="STATE.delta.people['+i+'].'+k+'=this.textContent;syncToFirebase()">'+p[k]+'</td>';
     });
     h+='</tr>';
   });
@@ -1090,7 +1107,7 @@ function renderDelta(){
   d.objects.forEach((o,i)=>{
     h+='<tr><td style="font-weight:600">'+o.name+'</td>';
     ['asIs','transition','target'].forEach(k=>{
-      h+='<td contenteditable="true" onblur="STATE.delta.objects['+i+'].'+k+'=this.textContent">'+o[k]+'</td>';
+      h+='<td contenteditable="true" onblur="STATE.delta.objects['+i+'].'+k+'=this.textContent;syncToFirebase()">'+o[k]+'</td>';
     });
     h+='</tr>';
   });
@@ -1105,7 +1122,7 @@ function renderRaci(){
   h+='</tr></thead><tbody>';
   r.processes.forEach((p,pi)=>{
     h+='<tr><td style="font-weight:600">'+p.name+'</td>';
-    p.v.forEach((val,vi)=>{h+='<td class="raci-cell raci-'+val+'" onclick="STATE.raci.processes['+pi+'].v['+vi+']=\'RACI\'[\'RACI\'.indexOf(STATE.raci.processes['+pi+'].v['+vi+'])+1&3];renderRaci()">'+val+'</td>'});
+    p.v.forEach((val,vi)=>{h+='<td class="raci-cell raci-'+val+'" onclick="STATE.raci.processes['+pi+'].v['+vi+']=\'RACI\'[\'RACI\'.indexOf(STATE.raci.processes['+pi+'].v['+vi+'])+1&3];renderRaci();syncToFirebase()">'+val+'</td>'});
     h+='</tr>';
   });
   h+='</tbody></table></div>';
@@ -1218,9 +1235,140 @@ function renderFrameworks(){
 }
 
 // ============================================================
+// FIREBASE REAL-TIME SYNC
+// ============================================================
+const FB_URL = 'https://nikfgdg5trg-default-rtdb.firebaseio.com';
+const SESSION_ID = 'user_' + Math.random().toString(36).substr(2, 6);
+let saveTimer = null;
+let ignoreNext = false;
+let eventSource = null;
+let lastSaveTs = 0;
+
+function setSyncStatus(status, text) {
+  const bar = document.getElementById('sync-bar');
+  const txt = document.getElementById('sync-text');
+  if (bar) bar.className = status;
+  if (txt) txt.textContent = text;
+}
+
+function syncToFirebase() {
+  if (saveTimer) clearTimeout(saveTimer);
+  setSyncStatus('saving', 'Сохраняю...');
+  saveTimer = setTimeout(() => {
+    lastSaveTs = Date.now();
+    const payload = JSON.stringify({
+      state: STATE,
+      editor: SESSION_ID,
+      ts: lastSaveTs
+    });
+    fetch(FB_URL + '/project.json', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: payload
+    })
+    .then(r => { if (r.ok) setSyncStatus('saved', 'Сохранено'); else setSyncStatus('error', 'Ошибка сохранения'); })
+    .catch(() => setSyncStatus('error', 'Нет соединения'));
+  }, 600);
+}
+
+function loadFromFirebase(callback) {
+  fetch(FB_URL + '/project.json')
+    .then(r => r.json())
+    .then(snap => {
+      if (snap && snap.state) {
+        Object.assign(STATE.trees, snap.state.trees || {});
+        Object.assign(STATE.delta, snap.state.delta || {});
+        Object.assign(STATE.gantt, snap.state.gantt || {});
+        Object.assign(STATE.raci, snap.state.raci || {});
+        Object.assign(STATE.budget, snap.state.budget || {});
+        if (snap.state.risks) STATE.risks = snap.state.risks;
+        if (snap.state.faq) STATE.faq = snap.state.faq;
+        setSyncStatus('synced', 'Синхронизировано');
+      }
+      if (callback) callback();
+    })
+    .catch(() => {
+      setSyncStatus('offline', 'Офлайн — работаю локально');
+      if (callback) callback();
+    });
+}
+
+function startRealtimeListener() {
+  if (eventSource) eventSource.close();
+  eventSource = new EventSource(FB_URL + '/project.json');
+
+  eventSource.addEventListener('put', function(e) {
+    try {
+      const msg = JSON.parse(e.data);
+      if (msg.path === '/' && msg.data && msg.data.editor !== SESSION_ID) {
+        // Someone else made a change
+        if (msg.data.ts && msg.data.ts <= lastSaveTs) return; // stale
+        ignoreNext = true;
+        Object.assign(STATE.trees, msg.data.state.trees || {});
+        Object.assign(STATE.delta, msg.data.state.delta || {});
+        Object.assign(STATE.gantt, msg.data.state.gantt || {});
+        Object.assign(STATE.raci, msg.data.state.raci || {});
+        Object.assign(STATE.budget, msg.data.state.budget || {});
+        if (msg.data.state.risks) STATE.risks = msg.data.state.risks;
+        if (msg.data.state.faq) STATE.faq = msg.data.state.faq;
+        renderAll(true);
+        setSyncStatus('synced', 'Обновлено от ' + msg.data.editor);
+        setTimeout(() => { ignoreNext = false; }, 100);
+      } else if (msg.path === '/' && msg.data && msg.data.editor === SESSION_ID) {
+        setSyncStatus('saved', 'Сохранено');
+      }
+    } catch(err) {
+      console.warn('Firebase parse error:', err);
+    }
+  });
+
+  eventSource.addEventListener('patch', function(e) {
+    try {
+      const msg = JSON.parse(e.data);
+      if (msg.data && msg.data.editor !== SESSION_ID) {
+        loadFromFirebase(() => renderAll(true));
+      }
+    } catch(err) {}
+  });
+
+  eventSource.onerror = function() {
+    setSyncStatus('offline', 'Переподключение...');
+    setTimeout(() => {
+      if (eventSource.readyState === 2) startRealtimeListener();
+    }, 3000);
+  };
+
+  eventSource.onopen = function() {
+    setSyncStatus('synced', 'Подключено');
+  };
+}
+
+// Track online presence
+function updatePresence() {
+  fetch(FB_URL + '/presence/' + SESSION_ID + '.json', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ts: Date.now(), id: SESSION_ID })
+  }).catch(() => {});
+}
+
+function checkOnlineUsers() {
+  fetch(FB_URL + '/presence.json')
+    .then(r => r.json())
+    .then(data => {
+      if (!data) return;
+      const now = Date.now();
+      const online = Object.values(data).filter(u => now - u.ts < 30000);
+      const el = document.getElementById('online-users');
+      if (el) el.textContent = online.length > 1 ? 'Онлайн: ' + online.length + ' чел.' : '';
+    })
+    .catch(() => {});
+}
+
+// ============================================================
 // RENDER ALL
 // ============================================================
-function renderAll(){
+function renderAll(fromRemote) {
   renderDashboard();
   renderTree('tree-asis', STATE.trees.asis, 'asis');
   renderTree('tree-transition', STATE.trees.transition, 'transition');
@@ -1232,8 +1380,20 @@ function renderAll(){
   renderRisks();
   renderFaq();
   renderFrameworks();
+  if (!fromRemote && !ignoreNext) syncToFirebase();
 }
-renderAll();
+
+// ============================================================
+// INIT: Load from Firebase, then render, then listen
+// ============================================================
+setSyncStatus('connecting', 'Подключение к Firebase...');
+loadFromFirebase(() => {
+  renderAll(true); // render without triggering save
+  startRealtimeListener();
+  updatePresence();
+  setInterval(updatePresence, 15000);
+  setInterval(checkOnlineUsers, 10000);
+});
 </script>
 </body>
 </html>
