@@ -194,7 +194,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
 .btn-secondary{background:var(--card);color:var(--text2);border:1px solid var(--border)}
 .btn-danger{background:var(--red2);color:#fff}
 
-/* === SYNC INDICATOR === */
+/* === SYNC & PRESENCE === */
 #sync-bar{display:flex;align-items:center;gap:6px;padding:8px 0;font-size:11px;color:var(--text3)}
 #sync-bar .sync-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;transition:background .3s}
 #sync-bar.saved .sync-dot{background:var(--green)}
@@ -204,7 +204,15 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
 #sync-bar.offline .sync-dot{background:var(--orange)}
 #sync-bar.connecting .sync-dot{background:var(--text3);animation:pulse 1s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-#online-users{font-size:10px;color:var(--text3);margin-top:2px}
+#presence-panel{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:10px}
+#presence-panel .pp-title{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+#presence-panel .pp-count{background:var(--green);color:#000;font-size:9px;font-weight:800;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.presence-user{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px}
+.presence-user .pu-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0}
+.presence-user .pu-name{font-weight:600;font-size:12px}
+.presence-user .pu-status{font-size:10px;color:var(--text3)}
+.presence-user .pu-dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0;box-shadow:0 0 6px rgba(61,184,106,.5)}
+.presence-user.you .pu-name::after{content:' (ты)';color:var(--text3);font-weight:400;font-size:10px}
 
 /* === PRINT === */
 @media print{
@@ -248,8 +256,11 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
     <button class="nav-btn" data-section="frameworks">Фреймворки</button>
   </div>
   <div id="sidebar-footer">
+    <div id="presence-panel">
+      <div class="pp-title">Сейчас онлайн <span class="pp-count" id="pp-count">0</span></div>
+      <div id="presence-list"></div>
+    </div>
     <div id="sync-bar" class="connecting"><div class="sync-dot"></div><span id="sync-text">Подключение...</span></div>
-    <div id="online-users"></div>
     <button onclick="exportJSON()">Скачать JSON</button>
     <button onclick="document.getElementById('imp').click()">Загрузить JSON</button>
     <input type="file" id="imp" accept=".json" style="display:none" onchange="importJSON(event)">
@@ -1343,12 +1354,29 @@ function startRealtimeListener() {
   };
 }
 
-// Track online presence
+// Track online presence with names
+const USER_COLORS = ['#4A8FE0','#3DB86A','#8B5CF6','#E89B3A','#D44040','#38BDF8','#C9A44C','#E0608A'];
+const MY_COLOR = USER_COLORS[Math.floor(Math.random()*USER_COLORS.length)];
+let myName = localStorage.getItem('gk_username') || '';
+
+function promptName() {
+  if (!myName) {
+    myName = prompt('Введите ваше имя (видно коллегам):','') || 'Аноним';
+    localStorage.setItem('gk_username', myName);
+  }
+}
+
 function updatePresence() {
   fetch(FB_URL + '/presence/' + SESSION_ID + '.json', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ts: Date.now(), id: SESSION_ID })
+    body: JSON.stringify({
+      ts: Date.now(),
+      id: SESSION_ID,
+      name: myName,
+      color: MY_COLOR,
+      page: document.querySelector('.nav-btn.active')?.dataset?.section || 'dashboard'
+    })
   }).catch(() => {});
 }
 
@@ -1358,12 +1386,40 @@ function checkOnlineUsers() {
     .then(data => {
       if (!data) return;
       const now = Date.now();
-      const online = Object.values(data).filter(u => now - u.ts < 30000);
-      const el = document.getElementById('online-users');
-      if (el) el.textContent = online.length > 1 ? 'Онлайн: ' + online.length + ' чел.' : '';
+      const users = Object.values(data).filter(u => now - u.ts < 30000);
+      users.sort((a,b) => a.id === SESSION_ID ? -1 : b.id === SESSION_ID ? 1 : 0);
+
+      const countEl = document.getElementById('pp-count');
+      const listEl = document.getElementById('presence-list');
+      if (countEl) {
+        countEl.textContent = users.length;
+        countEl.style.background = users.length > 1 ? 'var(--green)' : 'var(--text3)';
+      }
+      if (listEl) {
+        const pageNames = {
+          dashboard:'Dashboard', asis:'AS-IS', transition:'Переходная', target:'Целевая',
+          delta:'Дельта', gantt:'Гант', raci:'RACI', budget:'Бюджет',
+          risks:'Риски', faq:'FAQ', frameworks:'Фреймворки'
+        };
+        listEl.innerHTML = users.map(u => {
+          const isMe = u.id === SESSION_ID;
+          const initials = (u.name||'?').split(' ').map(w=>w[0]).join('').toUpperCase().substr(0,2);
+          const page = pageNames[u.page] || u.page || '';
+          return `<div class="presence-user${isMe?' you':''}">
+            <div class="pu-dot"></div>
+            <div class="pu-avatar" style="background:${u.color||'var(--blue)'}">${initials}</div>
+            <div><div class="pu-name">${u.name||'Аноним'}</div><div class="pu-status">Смотрит: ${page}</div></div>
+          </div>`;
+        }).join('');
+      }
     })
     .catch(() => {});
 }
+
+// Clean up stale presence on page close
+window.addEventListener('beforeunload', () => {
+  navigator.sendBeacon(FB_URL + '/presence/' + SESSION_ID + '.json', 'null');
+});
 
 // ============================================================
 // RENDER ALL
@@ -1386,13 +1442,18 @@ function renderAll(fromRemote) {
 // ============================================================
 // INIT: Load from Firebase, then render, then listen
 // ============================================================
+// Also track which page user is viewing for presence
+document.querySelectorAll('.nav-btn').forEach(b=>b.addEventListener('click',()=>{ setTimeout(updatePresence, 100); }));
+
 setSyncStatus('connecting', 'Подключение к Firebase...');
+promptName();
 loadFromFirebase(() => {
-  renderAll(true); // render without triggering save
+  renderAll(true);
   startRealtimeListener();
   updatePresence();
-  setInterval(updatePresence, 15000);
-  setInterval(checkOnlineUsers, 10000);
+  checkOnlineUsers();
+  setInterval(updatePresence, 10000);
+  setInterval(checkOnlineUsers, 5000);
 });
 </script>
 </body>
