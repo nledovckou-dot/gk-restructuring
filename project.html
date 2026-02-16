@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Проект реструктуризации ГК → Family Office</title>
+<style>
+:root {
+  --bg:#0D0B0E;--bg2:#141118;--card:#1A1620;--card2:#231E2A;
+  --border:#2D2735;--text:#E8E4ED;--text2:#9B95A3;--text3:#6B6573;
+  --gold:#C9A44C;--gold2:#A88A3A;--green:#3DB86A;--green2:#2D8A4F;
+  --red:#D44040;--red2:#A33030;--blue:#4A8FE0;--blue2:#3A6FB0;
+  --purple:#8B5CF6;--orange:#E89B3A;--cyan:#38BDF8;
+  --radius:10px;--shadow:0 4px 24px rgba(0,0,0,.4);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+#sidebar{width:260px;min-width:260px;background:var(--bg2);border-right:1px solid var(--border);padding:20px 0;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100}
+#sidebar h1{font-size:14px;padding:0 20px 16px;color:var(--gold);border-bottom:1px solid var(--border);margin-bottom:12px;font-weight:600;line-height:1.4}
+.nav-group{padding:0 12px;margin-bottom:8px}
+.nav-group-title{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);padding:8px 8px 4px}
+.nav-btn{display:block;width:100%;text-align:left;background:none;border:none;color:var(--text2);font-size:13px;padding:8px 12px;border-radius:6px;cursor:pointer;transition:all .2s}
+.nav-btn:hover{background:var(--card);color:var(--text)}
+.nav-btn.active{background:var(--card2);color:var(--gold);font-weight:600}
+.nav-btn .badge{display:inline-block;font-size:10px;background:var(--card2);color:var(--text3);padding:1px 6px;border-radius:10px;margin-left:6px}
+#sidebar-footer{margin-top:auto;padding:12px 20px;border-top:1px solid var(--border)}
+#sidebar-footer button{width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text2);cursor:pointer;font-size:12px;margin-bottom:6px;transition:all .2s}
+#sidebar-footer button:hover{border-color:var(--gold);color:var(--gold)}
+#main{margin-left:260px;flex:1;padding:32px;overflow-x:hidden}
+.section{display:none;animation:fadeIn .3s ease}
+.section.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.section-header{margin-bottom:28px}
+.section-header h2{font-size:26px;font-weight:700;margin-bottom:6px}
+.section-header p{font-size:14px;color:var(--text2);line-height:1.5}
+.section-header .tag{display:inline-block;font-size:11px;background:var(--card2);color:var(--gold);padding:3px 10px;border-radius:12px;margin-right:6px;margin-top:8px}
+
+/* === SVG TREE === */
+.tree-viewport{overflow:auto;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);position:relative;min-height:400px}
+.tree-svg{position:absolute;top:0;left:0;pointer-events:none}
+.tree-svg line{stroke:var(--border);stroke-width:2}
+.tree-svg path{stroke:var(--border);stroke-width:2.5;fill:none;stroke-linecap:round}
+.tree-nodes{position:relative}
+.tn{position:absolute;background:var(--card);border:1.5px solid var(--border);border-radius:10px;padding:12px 16px;text-align:center;cursor:pointer;transition:all .2s;z-index:2;min-width:140px}
+.tn:hover{transform:scale(1.06);box-shadow:0 6px 32px rgba(0,0,0,.5);z-index:3;border-color:var(--gold)}
+.tn .tn-title{font-size:13px;font-weight:700;white-space:nowrap}
+.tn .tn-sub{font-size:11px;color:var(--text2);margin-top:3px}
+.tn .tn-people{font-size:10px;color:var(--text3);margin-top:4px}
+.tn .tn-badge{position:absolute;top:-8px;right:-8px;font-size:9px;padding:2px 8px;border-radius:8px;font-weight:700}
+.tree-controls{position:absolute;top:10px;right:10px;z-index:5;display:flex;gap:4px}
+.tree-controls button{width:32px;height:32px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text2);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.tree-controls button:hover{border-color:var(--gold);color:var(--gold)}
+.tree-inner{transform-origin:0 0;transition:transform .2s}
+.tn.c-gold{border-color:var(--gold2);background:linear-gradient(135deg,#1A1620,#2A2030)}
+.tn.c-gold .tn-title{color:var(--gold)}
+.tn.c-red{border-color:var(--red2)}
+.tn.c-green{border-color:var(--green2)}
+.tn.c-blue{border-color:var(--blue2)}
+.tn.c-purple{border-color:var(--purple)}
+.tn.c-orange{border-color:var(--orange)}
+.tn.c-cyan{border-color:var(--cyan)}
+.badge-income{background:var(--green2);color:#fff}
+.badge-renovation{background:var(--orange);color:#000}
+.badge-construction{background:var(--blue2);color:#fff}
+
+/* === TABLES === */
+.data-table{width:100%;border-collapse:collapse;margin-top:12px}
+.data-table th{background:var(--card2);color:var(--text2);font-size:11px;text-transform:uppercase;letter-spacing:1px;padding:10px 12px;text-align:left;border-bottom:1px solid var(--border)}
+.data-table td{padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:top}
+.data-table tr:hover td{background:var(--card)}
+.data-table td[contenteditable="true"]{cursor:text}
+.data-table td[contenteditable="true"]:focus{outline:1px solid var(--gold);border-radius:3px}
+.raci-cell{text-align:center;font-weight:700;font-size:14px;cursor:pointer;user-select:none}
+.raci-R{color:var(--green)}.raci-A{color:var(--gold)}.raci-C{color:var(--blue)}.raci-I{color:var(--text3)}
+
+/* === GANTT v2 === */
+.gantt-wrap{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.gantt-toolbar{display:flex;gap:8px;padding:12px;background:var(--card2);border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center}
+.gantt-toolbar button{padding:5px 12px;border-radius:5px;border:1px solid var(--border);background:var(--card);color:var(--text2);cursor:pointer;font-size:11px;transition:all .2s}
+.gantt-toolbar button:hover{border-color:var(--gold);color:var(--gold)}
+.gantt-scroll{overflow-x:auto;overflow-y:auto;max-height:70vh}
+.gantt-grid{display:grid;min-width:1400px}
+.gantt-corner{background:var(--card2);border-right:1px solid var(--border);border-bottom:2px solid var(--border);padding:8px;font-size:10px;color:var(--text3);position:sticky;left:0;z-index:4}
+.gantt-mh{background:var(--card2);border-bottom:2px solid var(--border);border-right:1px solid rgba(45,39,53,.3);padding:6px 2px;font-size:10px;color:var(--text3);text-align:center;font-weight:600}
+.gantt-label{background:var(--bg2);border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:6px 10px;font-size:11px;position:sticky;left:0;z-index:3;display:flex;align-items:center;gap:6px}
+.gantt-label.phase-row{background:var(--card2);font-weight:700;font-size:12px;color:var(--text)}
+.gantt-label .gl-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gantt-label .gl-owner{font-size:9px;color:var(--text3);white-space:nowrap}
+.gantt-cell{border-right:1px solid rgba(45,39,53,.3);border-bottom:1px solid var(--border);position:relative;min-height:32px}
+.gantt-cell.phase-row{background:var(--card2)}
+.g-bar{position:absolute;top:5px;bottom:5px;border-radius:4px;cursor:grab;transition:opacity .15s;display:flex;align-items:center;justify-content:center;font-size:9px;color:rgba(255,255,255,.8);font-weight:600;overflow:hidden;min-width:12px;user-select:none}
+.g-bar:hover{opacity:.85;z-index:2}
+.g-bar:active{cursor:grabbing}
+.g-bar .g-resize{position:absolute;right:0;top:0;bottom:0;width:8px;cursor:ew-resize;background:rgba(255,255,255,.1);border-radius:0 4px 4px 0}
+.g-bar .g-resize:hover{background:rgba(255,255,255,.25)}
+.g-bar.p0{background:var(--text3)}.g-bar.p1{background:var(--green)}.g-bar.p2{background:var(--blue)}
+.g-bar.p3{background:var(--purple)}.g-bar.p4{background:var(--orange)}.g-bar.p5{background:var(--gold)}.g-bar.p6{background:var(--cyan)}
+.gantt-add-btn{background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:0 4px;transition:color .2s}
+.gantt-add-btn:hover{color:var(--green)}
+
+/* === CARDS / BLOCKS === */
+.struct-block{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px}
+.struct-block h3{font-size:16px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:12px}
+.obj-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;transition:all .2s;cursor:pointer}
+.obj-card:hover{border-color:var(--gold)}
+.obj-card .obj-name{font-size:13px;font-weight:600;margin-bottom:4px}
+.obj-card .obj-area{font-size:11px;color:var(--text2)}
+.obj-card .obj-status{font-size:10px;margin-top:6px;padding:2px 8px;border-radius:8px;display:inline-block}
+.obj-card .obj-status.income{background:rgba(61,184,106,.15);color:var(--green)}
+.obj-card .obj-status.renovation{background:rgba(232,155,58,.15);color:var(--orange)}
+.obj-card .obj-status.construction{background:rgba(74,143,224,.15);color:var(--blue)}
+.obj-card .obj-team{font-size:10px;color:var(--text3);margin-top:6px}
+.budget-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center}
+.budget-card .budget-amount{font-size:28px;font-weight:700;color:var(--gold)}
+.budget-card .budget-label{font-size:12px;color:var(--text2);margin-top:4px}
+.budget-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:20px}
+.faq-item{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;overflow:hidden}
+.faq-q{padding:14px 18px;cursor:pointer;font-size:14px;font-weight:600;display:flex;justify-content:space-between;align-items:center}
+.faq-q:hover{background:var(--card2)}
+.faq-q::after{content:'▸';transition:transform .2s;color:var(--text3)}
+.faq-item.open .faq-q::after{transform:rotate(90deg)}
+.faq-a{padding:0 18px;max-height:0;overflow:hidden;transition:all .3s;font-size:13px;color:var(--text2);line-height:1.6}
+.faq-item.open .faq-a{padding:0 18px 14px;max-height:2000px}
+.fw-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:12px}
+.fw-card h4{font-size:15px;color:var(--gold);margin-bottom:10px}
+.fw-card ul{padding-left:20px;font-size:13px;color:var(--text2);line-height:1.8}
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin:12px 0;font-size:11px;color:var(--text2)}
+.legend-item{display:flex;align-items:center;gap:5px}
+.legend-dot{width:10px;height:10px;border-radius:50%}
+
+/* === MODAL === */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;justify-content:center;align-items:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto}
+.modal h3{font-size:18px;margin-bottom:16px}
+.modal label{font-size:12px;color:var(--text2);display:block;margin-bottom:4px;margin-top:12px}
+.modal input,.modal select,.modal textarea{width:100%;padding:8px 12px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px}
+.modal textarea{min-height:80px;resize:vertical}
+.modal-actions{display:flex;gap:8px;margin-top:20px;justify-content:flex-end}
+.btn{padding:8px 18px;border-radius:6px;border:none;cursor:pointer;font-size:13px;font-weight:600;transition:all .2s}
+.btn-primary{background:var(--gold);color:#000}
+.btn-primary:hover{background:var(--gold2)}
+.btn-secondary{background:var(--card);color:var(--text2);border:1px solid var(--border)}
+.btn-danger{background:var(--red2);color:#fff}
+</style>
+</head>
+<body>
+<nav id="sidebar">
+  <h1>Проект реструктуризации<br>ГК → Family Office</h1>
+  <div class="nav-group">
+    <div class="nav-group-title">Структура</div>
+    <button class="nav-btn active" data-section="asis">AS-IS <span class="badge">текущая</span></button>
+    <button class="nav-btn" data-section="transition">Переходная <span class="badge">12 мес</span></button>
+    <button class="nav-btn" data-section="target">Целевая <span class="badge">18+ мес</span></button>
+    <button class="nav-btn" data-section="delta">Дельта <span class="badge">было→стало</span></button>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-title">Проект</div>
+    <button class="nav-btn" data-section="gantt">Диаграмма Ганта</button>
+    <button class="nav-btn" data-section="raci">RACI-матрица</button>
+    <button class="nav-btn" data-section="budget">Бюджет</button>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-title">Защита</div>
+    <button class="nav-btn" data-section="faq">FAQ — вопросы и ответы</button>
+    <button class="nav-btn" data-section="frameworks">Фреймворки</button>
+  </div>
+  <div id="sidebar-footer">
+    <button onclick="exportJSON()">Скачать JSON</button>
+    <button onclick="document.getElementById('imp').click()">Загрузить JSON</button>
+    <input type="file" id="imp" accept=".json" style="display:none" onchange="importJSON(event)">
+  </div>
+</nav>
+
+<div id="main">
+  <div id="section-asis" class="section active">
+    <div class="section-header">
+      <h2>Текущая структура (AS-IS)</h2>
+      <p>Управление по объектам. Одни и те же люди дублируются в каждом объекте — перегрузка ГК Траст.</p>
+      <span class="tag">Источник: Структура управления В-Н.docx</span>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--gold)"></div> Собственники</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div> Контроль (Траст)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div> Никита</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div> Владимир</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--purple)"></div> Совместные</div>
+    </div>
+    <div id="tree-asis" class="tree-viewport" style="height:620px"></div>
+    <div id="asis-details" style="margin-top:20px"></div>
+  </div>
+
+  <div id="section-transition" class="section">
+    <div class="section-header">
+      <h2>Переходная структура (12 месяцев)</h2>
+      <p>Управление по функциям: Никита = доход, Владимир = проекты. Траст — контроль.</p>
+      <span class="tag">Galbraith Star Model</span><span class="tag">Kotter Step 2-5</span>
+    </div>
+    <div id="tree-transition" class="tree-viewport" style="height:520px"></div>
+    <div id="transition-details" style="margin-top:20px"></div>
+  </div>
+
+  <div id="section-target" class="section">
+    <div class="section-header">
+      <h2>Целевая структура — Family Office (18+ месяцев)</h2>
+      <p>Институциональная модель: Family Council → Инвесткомитет → CEO FO → 4 блока.</p>
+      <span class="tag">Family Office</span><span class="tag">Инвестиционная платформа</span>
+    </div>
+    <div id="tree-target" class="tree-viewport" style="height:560px"></div>
+    <div id="target-details" style="margin-top:20px"></div>
+  </div>
+
+  <div id="section-delta" class="section">
+    <div class="section-header"><h2>Дельта: было → стало</h2><p>Кликните на ячейку для редактирования. Изменения сохраняются в JSON.</p></div>
+    <div id="delta-content"></div>
+  </div>
+
+  <div id="section-gantt" class="section">
+    <div class="section-header"><h2>Диаграмма Ганта</h2><p>Перетаскивайте задачи мышкой. Тяните за правый край для изменения длительности. Двойной клик — редактирование.</p></div>
+    <div id="gantt-content"></div>
+  </div>
+
+  <div id="section-raci" class="section">
+    <div class="section-header"><h2>RACI-матрица</h2><p>Клик по ячейке: R → A → C → I. A всегда один — иначе конфликты.</p></div>
+    <div id="raci-content"></div>
+  </div>
+
+  <div id="section-budget" class="section">
+    <div class="section-header"><h2>Бюджет реструктуризации</h2><p>Затраты по фазам. Двойной клик на сумму для редактирования.</p></div>
+    <div id="budget-content"></div>
+  </div>
+
+  <div id="section-faq" class="section">
+    <div class="section-header"><h2>FAQ — вопросы для защиты</h2><p>Предугаданные вопросы собственников.</p></div>
+    <div id="faq-content"></div>
+  </div>
+
+  <div id="section-frameworks" class="section">
+    <div class="section-header"><h2>Используемые фреймворки</h2></div>
+    <div id="frameworks-content"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modal"></div>
+</div>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+const STATE = {
+  // ---------- TREE DATA ----------
+  trees: {
+    asis: {
+      id:'root', label:'Собственники', sub:'АН + ПВ', color:'c-gold', children:[
+        { id:'trust', label:'ГК ТРАСТ', sub:'Контроль и комплаенс', color:'c-red', children:[
+          { id:'t1', label:'Бухгалтерия', sub:'Татьяна В.', color:'c-red' },
+          { id:'t2', label:'Юридический', sub:'Влад, Андрей', color:'c-red' },
+          { id:'t3', label:'Экономика', sub:'Екатерина', color:'c-red' },
+          { id:'t4', label:'Кадры', sub:'Наталья Т.', color:'c-red' },
+          { id:'t5', label:'Безопасность', sub:'Алексей П.', color:'c-red' },
+          { id:'t6', label:'IT', sub:'Павел Э., Константин', color:'c-red' }
+        ]},
+        { id:'nikita', label:'Никита', sub:'Руководитель направления', color:'c-green', children:[
+          { id:'n1', label:'Люсиновская', sub:'12 900 м²', color:'c-green', badge:'Доход', badgeCls:'badge-income' },
+          { id:'n2', label:'Никитина 20', sub:'3 900 м²', color:'c-orange', badge:'Ремонт', badgeCls:'badge-renovation' },
+          { id:'n3', label:'Никитина 20/2', sub:'3 400 м²', color:'c-orange', badge:'Ремонт', badgeCls:'badge-renovation' },
+          { id:'n4', label:'Земля Никитина', sub:'15 соток', color:'c-blue', badge:'Стройка', badgeCls:'badge-construction' },
+          { id:'n5', label:'Планета-05', sub:'1 300 м²', color:'c-green', badge:'Доход', badgeCls:'badge-income' },
+          { id:'n6', label:'Квартиры', sub:'18 + 4 объекта', color:'c-green', badge:'Доход', badgeCls:'badge-income' },
+          { id:'n7', label:'Поиск бизнесов', sub:'Стратегия', color:'c-green' }
+        ]},
+        { id:'vladimir', label:'Владимир', sub:'Руководитель направления', color:'c-blue', children:[
+          { id:'v1', label:'Элкопром', sub:'7 620 м²', color:'c-blue', badge:'Доход', badgeCls:'badge-income' },
+          { id:'v2', label:'БЦ Кубик', sub:'1 300 м²', color:'c-blue', badge:'Доход', badgeCls:'badge-income' },
+          { id:'v3', label:'Тулинская', sub:'1 000 м²', color:'c-blue', badge:'Доход', badgeCls:'badge-income' },
+          { id:'v4', label:'КП Сочи', sub:'31 дом, 150 сот.', color:'c-blue', badge:'Стройка', badgeCls:'badge-construction' },
+          { id:'v5', label:'Стройка Земля', sub:'5 участков', color:'c-blue', badge:'Стройка', badgeCls:'badge-construction' },
+          { id:'v6', label:'УК Империя', sub:'Управление', color:'c-blue' }
+        ]},
+        { id:'shared', label:'Maison Rouge', sub:'Ресторан (совместно)', color:'c-purple' }
+      ]
+    },
+    transition: {
+      id:'root', label:'Собственники', sub:'АН + ПВ (стратегия)', color:'c-gold', children:[
+        { id:'mgmt', label:'Управляющая команда', sub:'Никита + Владимир', color:'c-green', children:[
+          { id:'ops', label:'Операции / Доход', sub:'Никита — NOI, аренда', color:'c-green', children:[
+            { id:'o1', label:'Люсиновская', sub:'12 900 м²', color:'c-green' },
+            { id:'o2', label:'Планета-05', sub:'1 300 м²', color:'c-green' },
+            { id:'o3', label:'Квартиры', sub:'22 объекта', color:'c-green' },
+            { id:'o4', label:'Элкопром', sub:'7 620 м²', color:'c-green' },
+            { id:'o5', label:'БЦ Кубик', sub:'1 300 м²', color:'c-green' },
+            { id:'o6', label:'Тулинская', sub:'1 000 м²', color:'c-green' }
+          ]},
+          { id:'proj', label:'Проекты / Стройка', sub:'Владимир — сроки, бюджет', color:'c-blue', children:[
+            { id:'p1', label:'Капремонт Люсин.', sub:'~3 500 м²', color:'c-blue' },
+            { id:'p2', label:'Капремонт Ник.20', sub:'~3 900 м²', color:'c-blue' },
+            { id:'p3', label:'Капремонт Ник.20/2', sub:'~3 400 м²', color:'c-blue' },
+            { id:'p4', label:'Капремонт Элкопр.', sub:'~7 620 м²', color:'c-blue' },
+            { id:'p5', label:'КП Сочи', sub:'31 дом', color:'c-blue' },
+            { id:'p6', label:'Стройки Земля', sub:'Все участки', color:'c-blue' }
+          ]},
+          { id:'inv', label:'Инвестиции', sub:'Совместно', color:'c-purple' }
+        ]},
+        { id:'trust2', label:'ГК ТРАСТ', sub:'Контроль (не управляет)', color:'c-red', children:[
+          { id:'tr1', label:'Бухгалтерия', sub:'Централизованная', color:'c-red' },
+          { id:'tr2', label:'Юристы', sub:'Централизованные', color:'c-red' },
+          { id:'tr3', label:'Финконтроль', sub:'Екатерина', color:'c-red' },
+          { id:'tr4', label:'Кадры + СБ + IT', sub:'Централизованные', color:'c-red' }
+        ]}
+      ]
+    },
+    target: {
+      id:'root', label:'Семья', sub:'АН + ПВ', color:'c-gold', children:[
+        { id:'council', label:'Family Council', sub:'АН, ПВ, Никита, Владимир', color:'c-gold' },
+        { id:'committee', label:'Инвестиционный комитет', sub:'Стратегические решения', color:'c-gold' },
+        { id:'ceo', label:'CEO Family Office', sub:'Никита / Владимир', color:'c-green', children:[
+          { id:'im', label:'Investment Mgmt', sub:'Капитал • 2-3 чел.', color:'c-purple', children:[
+            { id:'im1', label:'Покупка/продажа', color:'c-purple' },
+            { id:'im2', label:'Портфельная стратегия', color:'c-purple' },
+            { id:'im3', label:'Аналитика', color:'c-purple' }
+          ]},
+          { id:'am', label:'Asset Mgmt', sub:'Активы • 4-6 чел.', color:'c-green', children:[
+            { id:'am1', label:'Доход объектов', color:'c-green' },
+            { id:'am2', label:'Арендаторы', color:'c-green' },
+            { id:'am3', label:'Заполняемость', color:'c-green' }
+          ]},
+          { id:'dev', label:'Development', sub:'Девелопмент • 3-5 чел.', color:'c-blue', children:[
+            { id:'d1', label:'Стройка', color:'c-blue' },
+            { id:'d2', label:'Реконструкции', color:'c-blue' },
+            { id:'d3', label:'Ввод объектов', color:'c-blue' }
+          ]},
+          { id:'sup', label:'FO Support', sub:'Поддержка • 3-5 чел.', color:'c-red', children:[
+            { id:'s1', label:'Финансы', color:'c-red' },
+            { id:'s2', label:'Юристы', color:'c-red' },
+            { id:'s3', label:'Комплаенс', color:'c-red' }
+          ]}
+        ]}
+      ]
+    }
+  },
+
+  // ---------- DELTA ----------
+  delta: {
+    people: [
+      { name:'Татьяна Викторовна', asIs:'Гл.бухгалтер — дублируется по объектам', transition:'Централизованная бухгалтерия (ТРАСТ)', target:'FO Support → Финансы' },
+      { name:'Влад', asIs:'Юрист — дублируется по объектам', transition:'Централизованный юр.блок', target:'FO Support → Юристы' },
+      { name:'Андрей (юрист)', asIs:'Юрист — дублируется по объектам', transition:'Централизованный юр.блок', target:'FO Support → Юристы' },
+      { name:'Екатерина', asIs:'Экономист — дублируется по объектам', transition:'Централизованный фин.контроль', target:'FO Support → Фин.аналитик' },
+      { name:'Наталья Тарасова', asIs:'Кадры — дублируется по объектам', transition:'Централизованные кадры', target:'FO Support → HR' },
+      { name:'Алексей Петрович', asIs:'СБ — дублируется по объектам', transition:'Единая служба безопасности', target:'FO Support → Безопасность' },
+      { name:'Иван', asIs:'Аренда/эксплуатация (несколько объектов)', transition:'Блок Операций → управляющий кластером', target:'Asset Mgmt → управляющий' },
+      { name:'Алексей (инженер)', asIs:'Гл.инженер Люсиновская+Никитина', transition:'Руководитель эксплуатации', target:'Asset Mgmt → техн.экспл.' },
+      { name:'Павел Эдуардович', asIs:'IT ГК Траст', transition:'IT + автоматизация', target:'FO Support → IT' },
+      { name:'Никита', asIs:'Руководитель направления (всё)', transition:'Управл.команда → Доход', target:'CEO FO / Investment' },
+      { name:'Владимир', asIs:'Руководитель направления (всё)', transition:'Управл.команда → Проекты', target:'CEO FO / Development' }
+    ],
+    objects: [
+      { name:'Люсиновская (12 900 м²)', asIs:'Никита → свои люди', transition:'Операции (Никита)', target:'Asset Management' },
+      { name:'Никитина 20 (3 900 м²)', asIs:'Никита → капремонт', transition:'Проекты (Владимир) → Операции', target:'Asset Mgmt (после ремонта)' },
+      { name:'Никитина 20/2 (3 400 м²)', asIs:'Никита → капремонт', transition:'Проекты (Владимир) → Операции', target:'Asset Mgmt (после ремонта)' },
+      { name:'Земля Никитина (15 сот.)', asIs:'Никита → строительство', transition:'Проекты (Владимир)', target:'Development → Asset Mgmt' },
+      { name:'Планета-05 (1 300 м²)', asIs:'Никита', transition:'Операции (Никита)', target:'Asset Management' },
+      { name:'Квартиры (22 шт)', asIs:'Никита → Ольга, Мария', transition:'Операции (Никита)', target:'Asset Management' },
+      { name:'Элкопром (7 620 м²)', asIs:'Владимир → свои люди', transition:'Операции (Никита) + капремонт (Владимир)', target:'Asset Management' },
+      { name:'БЦ Кубик (1 300 м²)', asIs:'Владимир → Иван', transition:'Операции (Никита)', target:'Asset Management' },
+      { name:'Тулинская (1 000 м²)', asIs:'Владимир → Иван', transition:'Операции (Никита)', target:'Asset Management' },
+      { name:'КП Сочи (31 дом)', asIs:'Владимир → Слава, Дмитрий', transition:'Проекты (Владимир)', target:'Development' },
+      { name:'Maison Rouge', asIs:'Совместно (Никита+АН+Владимир)', transition:'Доп.проект руководства', target:'Отдельное управление' }
+    ]
+  },
+
+  // ---------- GANTT ----------
+  gantt: {
+    months:['М1','М2','М3','М4','М5','М6','М7','М8','М9','М10','М11','М12','М13','М14','М15','М16','М17','М18'],
+    phases:[
+      { name:'Фаза 0: Подготовка', cls:'p0', tasks:[
+        { name:'Утверждение структуры собственниками', owner:'АН + ПВ', s:0, d:1, budget:0 },
+        { name:'Коммуникация команде', owner:'Никита + Владимир', s:0, d:1, budget:0 },
+        { name:'Назначение управляющей команды', owner:'АН + ПВ', s:0, d:1, budget:0 }
+      ]},
+      { name:'Фаза 1: Прозрачность (0-2 мес)', cls:'p1', tasks:[
+        { name:'Консолидированный cash-flow', owner:'Екатерина + Татьяна В.', s:0, d:2, budget:0 },
+        { name:'Доход/расход по каждому объекту', owner:'Екатерина', s:0, d:2, budget:0 },
+        { name:'Реестр арендаторов + заполняемость', owner:'Иван', s:0, d:1, budget:0 },
+        { name:'Классификация объектов: доход/ремонт/стройка', owner:'Никита + Владимир', s:1, d:1, budget:0 },
+        { name:'Запуск еженедельного совещания', owner:'Никита + Владимир', s:0, d:1, budget:0 },
+        { name:'Фиксация всех проектов + бюджеты + сроки', owner:'Владимир', s:0, d:2, budget:0 }
+      ]},
+      { name:'Фаза 2: Портфельное управление (2-4 мес)', cls:'p2', tasks:[
+        { name:'P&L по каждому объекту', owner:'Екатерина', s:2, d:2, budget:0 },
+        { name:'План роста доходности по объектам', owner:'Никита', s:2, d:2, budget:0 },
+        { name:'Графики + бюджеты всех строек', owner:'Владимир', s:2, d:2, budget:0 },
+        { name:'Перераспределение задач (снять перегрузку)', owner:'Никита + Владимир', s:2, d:2, budget:0 },
+        { name:'Разделение зон: Никита=доход, Владимир=проекты', owner:'Никита + Владимир', s:2, d:1, budget:0 },
+        { name:'Первый ежемесячный отчёт собственникам', owner:'Управл.команда', s:2, d:1, budget:0 }
+      ]},
+      { name:'Фаза 3: Новая система (3-4 мес)', cls:'p3', tasks:[
+        { name:'KPI объектов (NOI, заполняемость, ставки)', owner:'Никита', s:3, d:1, budget:0 },
+        { name:'KPI проектов (сроки, бюджеты, ROI)', owner:'Владимир', s:3, d:1, budget:0 },
+        { name:'Портфельная отчётность', owner:'Екатерина', s:3, d:2, budget:50000 },
+        { name:'Определение будущих руководителей', owner:'Никита + Владимир', s:3, d:2, budget:0 },
+        { name:'Выбор системы автоматизации', owner:'Павел Э.', s:3, d:2, budget:100000 },
+        { name:'Финансовый план портфеля на год', owner:'Екатерина + Никита', s:3, d:1, budget:0 }
+      ]},
+      { name:'Фаза 4: Стабилизация (4-7 мес)', cls:'p4', tasks:[
+        { name:'Централизация бухгалтерии', owner:'Татьяна В.', s:4, d:3, budget:0 },
+        { name:'Централизация юридического блока', owner:'Влад', s:4, d:3, budget:0 },
+        { name:'Централизация HR', owner:'Наталья Тарасова', s:4, d:2, budget:0 },
+        { name:'Единая служба эксплуатации', owner:'Алексей (инженер)', s:4, d:3, budget:0 },
+        { name:'Разделение операционки и проектов по объектам', owner:'Никита + Владимир', s:4, d:3, budget:0 },
+        { name:'Регламенты и стандарты управления', owner:'Никита', s:5, d:2, budget:150000 },
+        { name:'Внедрение IT-системы', owner:'Павел Э.', s:4, d:3, budget:500000 },
+        { name:'Запуск инвесткомитета (ежеквартально)', owner:'АН + ПВ', s:6, d:1, budget:0 }
+      ]},
+      { name:'Фаза 5: Формирование команды (7-12 мес)', cls:'p5', tasks:[
+        { name:'Найм руководителя Asset Management', owner:'Никита', s:7, d:3, budget:200000 },
+        { name:'Найм руководителя Development', owner:'Владимир', s:7, d:3, budget:200000 },
+        { name:'Найм финансового аналитика', owner:'Екатерина', s:8, d:2, budget:150000 },
+        { name:'Передача операционки от Никиты', owner:'Никита', s:9, d:3, budget:0 },
+        { name:'Передача проектов от Владимира', owner:'Владимир', s:9, d:3, budget:0 },
+        { name:'Обучение руководителей стандартам', owner:'Никита + Владимир', s:10, d:2, budget:300000 },
+        { name:'Family Council — первое заседание', owner:'АН + ПВ', s:11, d:1, budget:0 }
+      ]},
+      { name:'Фаза 6: Family Office (13-18 мес)', cls:'p6', tasks:[
+        { name:'Формирование Investment Management блока', owner:'Никита', s:12, d:3, budget:300000 },
+        { name:'Формирование FO Support блока', owner:'Никита + Владимир', s:12, d:3, budget:100000 },
+        { name:'Назначение CEO Family Office', owner:'АН + ПВ', s:13, d:2, budget:0 },
+        { name:'Полный выход из операционки', owner:'Никита + Владимир', s:14, d:3, budget:0 },
+        { name:'Внешний аудит системы', owner:'Консультант', s:15, d:2, budget:500000 },
+        { name:'Корректировка по результатам аудита', owner:'CEO FO', s:16, d:2, budget:0 },
+        { name:'Утверждение финальной структуры', owner:'АН + ПВ', s:17, d:1, budget:0 }
+      ]}
+    ]
+  },
+
+  // ---------- RACI ----------
+  raci: {
+    roles:['АН+ПВ','Никита','Владимир','ТРАСТ','Рук-ли'],
+    processes:[
+      { name:'Поиск новых объектов', v:['C','R','R','I','I'] },
+      { name:'Финансовый анализ сделки', v:['I','A','C','R','I'] },
+      { name:'Решение о покупке', v:['A','R','R','C','I'] },
+      { name:'Продажа активов', v:['A','C','C','R','I'] },
+      { name:'Стратегия портфеля', v:['A','R','R','C','I'] },
+      { name:'Заполняемость объектов', v:['I','A','I','I','R'] },
+      { name:'Арендные ставки', v:['I','A','I','C','R'] },
+      { name:'Управление арендаторами', v:['I','A','I','C','R'] },
+      { name:'Сервис и эксплуатация', v:['I','A','C','I','R'] },
+      { name:'План проекта (стройка)', v:['I','C','A','I','R'] },
+      { name:'Выбор подрядчиков', v:['I','C','A','I','R'] },
+      { name:'Бюджет проекта', v:['I','C','A','R','I'] },
+      { name:'Контроль сроков стройки', v:['I','I','A','I','R'] },
+      { name:'Ввод в эксплуатацию', v:['I','C','A','I','R'] },
+      { name:'Консолидированная отчётность', v:['A','C','C','R','I'] },
+      { name:'Контроль бюджета', v:['A','C','C','R','I'] },
+      { name:'Комплаенс', v:['A','I','I','R','I'] },
+      { name:'Баланс портфеля', v:['A','R','R','C','I'] },
+      { name:'Перераспределение капитала', v:['A','R','R','C','I'] }
+    ]
+  },
+
+  budget: {
+    phases:[
+      { name:'Фаза 0-1: Подготовка + прозрачность', months:'0-2', items:[{name:'Внутренние ресурсы',cost:0}], total:0 },
+      { name:'Фаза 2-3: Управление + система', months:'2-4', items:[{name:'Инструменты отчётности',cost:50000},{name:'Консультация автоматизация',cost:100000}], total:150000 },
+      { name:'Фаза 4: Стабилизация', months:'4-7', items:[{name:'IT-система',cost:500000},{name:'Регламенты',cost:150000}], total:650000 },
+      { name:'Фаза 5: Команда', months:'7-12', items:[{name:'Найм руководителей (2)',cost:400000},{name:'Найм аналитика',cost:150000},{name:'Обучение',cost:300000}], total:850000 },
+      { name:'Фаза 6: Family Office', months:'13-18', items:[{name:'Формирование блоков',cost:400000},{name:'Внешний аудит',cost:500000}], total:900000 }
+    ],
+    grandTotal:2550000
+  },
+
+  faq: [
+    { q:'Зачем менять то, что работает?', a:'Система работает за счёт личного участия собственников и перегрузки ключевых людей. При росте портфеля с 7.5 до 12+ млрд текущая модель <strong>не масштабируется</strong>. Проблема не в людях — в архитектуре управления (Galbraith: структура не соответствует стратегии).' },
+    { q:'Люди не разбегутся от изменений?', a:'Kotter: изменения начинаются не с людей, а с <strong>создания срочности и быстрых побед</strong>. Первые 30 дней — только прозрачность. Никто не теряет работу. Централизация = снятие дублирования и перегрузки, не сокращение.' },
+    { q:'Как разделить зоны Никиты и Владимира без конфликтов?', a:'Ответственность по <strong>типу задач, не по объектам</strong>. Никита = доход (NOI, заполняемость). Владимир = создание активов (стройка, ввод). Зоны НЕ пересекаются. Споры → через цифры. Еженедельный управленческий совет.' },
+    { q:'Что будет с объектами в ремонте?', a:'Объекты в ремонте → Владимир (Проекты). После ремонта → Никита (Операции). Чёткая точка передачи: <strong>Владимир строит → Никита зарабатывает</strong>.' },
+    { q:'Зачем Family Council?', a:'Решает вопросы за рамками бизнеса: наследование, правила прибыли, стратегия на 10+ лет. Сейчас — 4 человека, ежеквартально. Фундамент для <strong>управления капиталом поколениями</strong>.' },
+    { q:'Сколько стоит реструктуризация?', a:'~2.5 млн руб за 18 мес. Это <strong>0.03% от портфеля</strong> (7.5 млрд). Один неоптимальный объект в ремонте стоит в разы дороже.' },
+    { q:'Как собственники будут контролировать?', a:'<strong>3 уровня:</strong> еженедельные отчёты команды; ежемесячный отчёт (доход, проекты, cash-flow); ежеквартальный инвесткомитет. Траст — независимый контрольный блок.' },
+    { q:'Что если руководителей не найти?', a:'6 месяцев на формирование (мес 7-12). Приоритет — выращивание из команды (Иван, Алексей). Параллельно — рынок. Если не готовы к мес 12 — <strong>переходная структура продлевается</strong>.' },
+    { q:'Почему 1-2% от прироста капитала?', a:'Фикс (400-600 тыс/мес) + бонус (3-6 млн/год) + <strong>1-2% от прироста капитализации</strong>. Рост с 7.5 до 10 млрд = бонус 25-50 млн на двоих. Собственники платят за рост, не за управление. Нет роста — нет бонуса.' },
+    { q:'Maison Rouge — как вписывается?', a:'Ресторан — отдельный бизнес. В переходной структуре — доп.проект руководства. В целевой — отдельное управление со своим P&L. Решение (развивать/продать) — на инвесткомитете.' }
+  ]
+};
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+document.querySelectorAll('.nav-btn').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.nav-btn').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('section-'+b.dataset.section).classList.add('active');
+}));
+
+// ============================================================
+// JSON EXPORT/IMPORT
+// ============================================================
+function exportJSON(){
+  const b=new Blob([JSON.stringify(STATE,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='restructuring-state.json';a.click();
+}
+function importJSON(e){
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=ev=>{try{Object.assign(STATE,JSON.parse(ev.target.result));renderAll();alert('Загружено!')}catch(err){alert('Ошибка: '+err.message)}};
+  r.readAsText(f);
+}
+
+// ============================================================
+// MODAL
+// ============================================================
+function openModal(html){document.getElementById('modal').innerHTML=html;document.getElementById('modal-overlay').classList.add('open')}
+function closeModal(){document.getElementById('modal-overlay').classList.remove('open')}
+
+// ============================================================
+// SVG TREE RENDERER
+// ============================================================
+function layoutTree(node, depth=0, x={val:0}) {
+  if (!node.children || !node.children.length) {
+    node._x = x.val; node._y = depth; node._w = 1;
+    x.val += 1;
+    return;
+  }
+  const startX = x.val;
+  node.children.forEach(c => layoutTree(c, depth+1, x));
+  const endX = x.val;
+  node._w = endX - startX;
+  node._x = startX + node._w/2 - 0.5;
+  node._y = depth;
+}
+
+const treeZoom={};
+function renderTree(containerId, treeData, treeName) {
+  const tree = JSON.parse(JSON.stringify(treeData));
+  layoutTree(tree);
+
+  const nodeW=170, nodeH=64, gapX=186, gapY=110, padX=40, padY=40;
+  function countLeaves(n){if(!n.children||!n.children.length)return 1;return n.children.reduce((s,c)=>s+countLeaves(c),0)}
+  const leaves=countLeaves(tree);
+  function maxDepth(n,d=0){if(!n.children||!n.children.length)return d;return Math.max(...n.children.map(c=>maxDepth(c,d+1)))}
+  const depth=maxDepth(tree);
+  const totalW=leaves*gapX+padX*2;
+  const totalH=(depth+1)*gapY+padY*2;
+
+  if(!treeZoom[containerId]) treeZoom[containerId]=1;
+  const z=treeZoom[containerId];
+  const container=document.getElementById(containerId);
+  container.style.height=Math.max(totalH*z+20,400)+'px';
+
+  let svgPaths='';
+  let nodesHtml='';
+  let nodeIndex=0;
+
+  function px(node){return padX+node._x*gapX+(gapX-nodeW)/2}
+  function py(node){return padY+node._y*gapY}
+
+  // Flatten tree to find node by index
+  const flatNodes=[];
+  function flatten(n,parentId){flatNodes.push({...n,_parentId:parentId});if(n.children)n.children.forEach(c=>flatten(c,n.id))}
+  flatten(tree,null);
+
+  function walk(node){
+    const x1=px(node)+nodeW/2, y1=py(node)+nodeH;
+    if(node.children){
+      node.children.forEach(c=>{
+        const x2=px(c)+nodeW/2, y2=py(c);
+        const my=(y1+y2)/2;
+        svgPaths+=`<path d="M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}"/>`;
+        walk(c);
+      });
+    }
+    const cls=node.color||'';
+    let badge='';
+    if(node.badge) badge=`<span class="tn-badge ${node.badgeCls||''}">${node.badge}</span>`;
+    const ni=nodeIndex++;
+    nodesHtml+=`<div class="tn ${cls}" style="left:${px(node)}px;top:${py(node)}px;width:${nodeW}px" onclick="editTreeNode('${treeName}','${node.id}')" title="Клик для редактирования">${badge}<div class="tn-title">${node.label}</div>${node.sub?'<div class="tn-sub">'+node.sub+'</div>':''}${node.people?'<div class="tn-people">'+node.people+'</div>':''}</div>`;
+  }
+  walk(tree);
+
+  container.innerHTML=`<div class="tree-controls"><button onclick="zoomTree('${containerId}','${treeName}',0.1)" title="Увеличить">+</button><button onclick="zoomTree('${containerId}','${treeName}',-0.1)" title="Уменьшить">−</button><button onclick="treeZoom['${containerId}']=1;renderTree('${containerId}',STATE.trees.${treeName},'${treeName}')" title="Сбросить">1:1</button></div><div class="tree-inner" style="transform:scale(${z});width:${totalW}px;height:${totalH}px"><svg class="tree-svg" width="${totalW}" height="${totalH}">${svgPaths}</svg><div class="tree-nodes" style="width:${totalW}px;height:${totalH}px">${nodesHtml}</div></div>`;
+  container.scrollLeft=(totalW*z-container.clientWidth)/2;
+}
+
+function zoomTree(cid,tname,delta){
+  treeZoom[cid]=Math.max(0.4,Math.min(1.5,(treeZoom[cid]||1)+delta));
+  renderTree(cid,STATE.trees[tname],tname);
+}
+
+function findNode(tree,id){
+  if(tree.id===id)return tree;
+  if(tree.children)for(const c of tree.children){const r=findNode(c,id);if(r)return r}
+  return null;
+}
+function findParent(tree,id){
+  if(tree.children)for(const c of tree.children){if(c.id===id)return tree;const r=findParent(c,id);if(r)return r}
+  return null;
+}
+
+function editTreeNode(treeName,nodeId){
+  const tree=STATE.trees[treeName];
+  const node=findNode(tree,nodeId);
+  if(!node)return;
+  const parent=findParent(tree,nodeId);
+  openModal(`<h3>Редактировать узел</h3>
+    <label>Название</label><input id="tn-label" value="${node.label||''}">
+    <label>Подпись</label><input id="tn-sub" value="${node.sub||''}">
+    <label>Бейдж</label><input id="tn-badge" value="${node.badge||''}" placeholder="Доход / Ремонт / Стройка">
+    <div class="modal-actions">
+      ${parent?'<button class="btn btn-danger" onclick="deleteTreeNode(\''+treeName+'\',\''+nodeId+'\')">Удалить</button>':''}
+      <button class="btn btn-secondary" onclick="addTreeChild('${treeName}','${nodeId}')">+ Дочерний</button>
+      <button class="btn btn-secondary" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-primary" onclick="saveTreeNode('${treeName}','${nodeId}')">Сохранить</button>
+    </div>`);
+}
+
+function saveTreeNode(treeName,nodeId){
+  const node=findNode(STATE.trees[treeName],nodeId);
+  node.label=document.getElementById('tn-label').value;
+  node.sub=document.getElementById('tn-sub').value;
+  const b=document.getElementById('tn-badge').value;
+  node.badge=b||undefined;
+  if(b){
+    if(b.toLowerCase().includes('доход'))node.badgeCls='badge-income';
+    else if(b.toLowerCase().includes('ремонт'))node.badgeCls='badge-renovation';
+    else if(b.toLowerCase().includes('строй'))node.badgeCls='badge-construction';
+  }
+  closeModal();
+  const cid='tree-'+treeName;
+  renderTree(cid,STATE.trees[treeName],treeName);
+}
+
+function deleteTreeNode(treeName,nodeId){
+  const tree=STATE.trees[treeName];
+  const parent=findParent(tree,nodeId);
+  if(parent&&parent.children){parent.children=parent.children.filter(c=>c.id!==nodeId)}
+  closeModal();
+  renderTree('tree-'+treeName,STATE.trees[treeName],treeName);
+}
+
+function addTreeChild(treeName,parentId){
+  const node=findNode(STATE.trees[treeName],parentId);
+  if(!node.children)node.children=[];
+  const newId=treeName+'_new_'+Date.now();
+  node.children.push({id:newId,label:'Новый узел',sub:'',color:node.color||''});
+  closeModal();
+  renderTree('tree-'+treeName,STATE.trees[treeName],treeName);
+}
+
+// ============================================================
+// GANTT RENDERER v2 — interactive
+// ============================================================
+let ganttDrag=null;
+
+function renderGantt(){
+  const g=STATE.gantt;
+  const M=g.months.length;
+  const labelW=320;
+  let html='<div class="gantt-wrap"><div class="gantt-toolbar">';
+  html+='<span style="font-size:11px;color:var(--text3)">Drag = двигать | Правый край = длительность | Двойной клик = редактировать</span>';
+  html+='</div><div class="gantt-scroll"><div class="gantt-grid" style="grid-template-columns:'+labelW+'px repeat('+M+',1fr)">';
+
+  // header
+  html+='<div class="gantt-corner">Задача / Ответственный</div>';
+  g.months.forEach(m=>html+='<div class="gantt-mh">'+m+'</div>');
+
+  // phases + tasks
+  g.phases.forEach((phase,pi)=>{
+    html+='<div class="gantt-label phase-row">'+phase.name+'</div>';
+    for(let i=0;i<M;i++) html+='<div class="gantt-cell phase-row"></div>';
+
+    phase.tasks.forEach((task,ti)=>{
+      html+='<div class="gantt-label"><span class="gl-name" title="'+task.name+'">'+task.name+'</span><span class="gl-owner">'+task.owner+'</span>';
+      html+='<button class="gantt-add-btn" title="Добавить задачу после" onclick="addGanttTask('+pi+','+ti+')">+</button></div>';
+
+      for(let i=0;i<M;i++){
+        html+='<div class="gantt-cell" data-pi="'+pi+'" data-ti="'+ti+'" data-col="'+i+'">';
+        if(i>=task.s && i<task.s+task.d){
+          const isFirst=i===task.s;
+          const isLast=i===task.s+task.d-1;
+          let barStyle='';
+          if(isFirst&&isLast) barStyle='left:4px;right:4px;border-radius:4px';
+          else if(isFirst) barStyle='left:4px;right:0;border-radius:4px 0 0 4px';
+          else if(isLast) barStyle='left:0;right:4px;border-radius:0 4px 4px 0';
+          else barStyle='left:0;right:0;border-radius:0';
+          html+='<div class="g-bar '+phase.cls+'" style="'+barStyle+'" data-pi="'+pi+'" data-ti="'+ti+'" ondblclick="editGanttTask('+pi+','+ti+')" onmousedown="startGanttDrag(event,'+pi+','+ti+')">';
+          if(isFirst) html+=task.d>1?'':'';
+          if(isLast) html+='<div class="g-resize" onmousedown="startGanttResize(event,'+pi+','+ti+')"></div>';
+          html+='</div>';
+        }
+        html+='</div>';
+      }
+    });
+  });
+
+  html+='</div></div></div>';
+
+  // Budget mini-table
+  html+='<div style="margin-top:20px"><h3 style="margin-bottom:8px">Бюджет по задачам с ненулевыми затратами</h3><table class="data-table"><thead><tr><th>Фаза</th><th>Задача</th><th>Бюджет</th></tr></thead><tbody>';
+  g.phases.forEach(ph=>{
+    ph.tasks.forEach(t=>{
+      if(t.budget>0){
+        html+='<tr><td style="color:var(--text3)">'+ph.name.split(':')[0]+'</td><td>'+t.name+'</td><td style="color:var(--gold)">'+t.budget.toLocaleString('ru-RU')+' ₽</td></tr>';
+      }
+    });
+  });
+  html+='</tbody></table></div>';
+
+  document.getElementById('gantt-content').innerHTML=html;
+}
+
+function startGanttDrag(e,pi,ti){
+  if(e.target.classList.contains('g-resize'))return;
+  e.preventDefault();
+  const task=STATE.gantt.phases[pi].tasks[ti];
+  const cells=document.querySelectorAll('.gantt-cell[data-pi="'+pi+'"][data-ti="'+ti+'"]');
+  if(!cells.length)return;
+  const cellW=cells[0].offsetWidth;
+  const startX=e.clientX;
+  const origS=task.s;
+
+  function onMove(ev){
+    const dx=ev.clientX-startX;
+    const dc=Math.round(dx/cellW);
+    task.s=Math.max(0,Math.min(STATE.gantt.months.length-task.d, origS+dc));
+    renderGantt();
+  }
+  function onUp(){document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp)}
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('mouseup',onUp);
+}
+
+function startGanttResize(e,pi,ti){
+  e.preventDefault();e.stopPropagation();
+  const task=STATE.gantt.phases[pi].tasks[ti];
+  const cells=document.querySelectorAll('.gantt-cell[data-pi="'+pi+'"][data-ti="'+ti+'"]');
+  if(!cells.length)return;
+  const cellW=cells[0].offsetWidth;
+  const startX=e.clientX;
+  const origD=task.d;
+
+  function onMove(ev){
+    const dx=ev.clientX-startX;
+    const dc=Math.round(dx/cellW);
+    task.d=Math.max(1,Math.min(STATE.gantt.months.length-task.s, origD+dc));
+    renderGantt();
+  }
+  function onUp(){document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp)}
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('mouseup',onUp);
+}
+
+function editGanttTask(pi,ti){
+  const task=STATE.gantt.phases[pi].tasks[ti];
+  openModal(`<h3>Редактировать задачу</h3>
+    <label>Название</label><input id="gt-name" value="${task.name}">
+    <label>Ответственный</label><input id="gt-owner" value="${task.owner}">
+    <label>Начало (месяц, 0-based)</label><input id="gt-s" type="number" min="0" max="${STATE.gantt.months.length-1}" value="${task.s}">
+    <label>Длительность (месяцев)</label><input id="gt-d" type="number" min="1" max="${STATE.gantt.months.length}" value="${task.d}">
+    <label>Бюджет (руб)</label><input id="gt-b" type="number" min="0" value="${task.budget}">
+    <div class="modal-actions">
+      <button class="btn btn-danger" onclick="deleteGanttTask(${pi},${ti})">Удалить</button>
+      <button class="btn btn-secondary" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-primary" onclick="saveGanttTask(${pi},${ti})">Сохранить</button>
+    </div>`);
+}
+
+function saveGanttTask(pi,ti){
+  const t=STATE.gantt.phases[pi].tasks[ti];
+  t.name=document.getElementById('gt-name').value;
+  t.owner=document.getElementById('gt-owner').value;
+  t.s=parseInt(document.getElementById('gt-s').value)||0;
+  t.d=parseInt(document.getElementById('gt-d').value)||1;
+  t.budget=parseInt(document.getElementById('gt-b').value)||0;
+  closeModal();renderGantt();
+}
+
+function deleteGanttTask(pi,ti){
+  STATE.gantt.phases[pi].tasks.splice(ti,1);
+  closeModal();renderGantt();
+}
+
+function addGanttTask(pi,afterTi){
+  const phase=STATE.gantt.phases[pi];
+  const prev=phase.tasks[afterTi];
+  phase.tasks.splice(afterTi+1,0,{name:'Новая задача',owner:'TBD',s:prev?prev.s+prev.d:0,d:1,budget:0});
+  renderGantt();
+}
+
+// ============================================================
+// DELTA, RACI, BUDGET, FAQ, FRAMEWORKS renderers
+// ============================================================
+function renderDelta(){
+  const d=STATE.delta;
+  let h='<h3 style="margin-bottom:12px">Переход по сотрудникам</h3>';
+  h+='<table class="data-table"><thead><tr><th>Сотрудник</th><th>AS-IS</th><th>Переходная (12 мес)</th><th>Целевая (18+ мес)</th></tr></thead><tbody>';
+  d.people.forEach((p,i)=>{
+    h+='<tr><td style="font-weight:600">'+p.name+'</td>';
+    ['asIs','transition','target'].forEach(k=>{
+      h+='<td contenteditable="true" onblur="STATE.delta.people['+i+'].'+k+'=this.textContent">'+p[k]+'</td>';
+    });
+    h+='</tr>';
+  });
+  h+='</tbody></table><h3 style="margin:24px 0 12px">Переход по объектам</h3>';
+  h+='<table class="data-table"><thead><tr><th>Объект</th><th>AS-IS</th><th>Переходная</th><th>Целевая</th></tr></thead><tbody>';
+  d.objects.forEach((o,i)=>{
+    h+='<tr><td style="font-weight:600">'+o.name+'</td>';
+    ['asIs','transition','target'].forEach(k=>{
+      h+='<td contenteditable="true" onblur="STATE.delta.objects['+i+'].'+k+'=this.textContent">'+o[k]+'</td>';
+    });
+    h+='</tr>';
+  });
+  h+='</tbody></table>';
+  document.getElementById('delta-content').innerHTML=h;
+}
+
+function renderRaci(){
+  const r=STATE.raci;
+  let h='<div style="overflow-x:auto"><table class="data-table"><thead><tr><th>Процесс</th>';
+  r.roles.forEach(role=>h+='<th style="text-align:center">'+role+'</th>');
+  h+='</tr></thead><tbody>';
+  r.processes.forEach((p,pi)=>{
+    h+='<tr><td style="font-weight:600">'+p.name+'</td>';
+    p.v.forEach((val,vi)=>{h+='<td class="raci-cell raci-'+val+'" onclick="STATE.raci.processes['+pi+'].v['+vi+']=\'RACI\'[\'RACI\'.indexOf(STATE.raci.processes['+pi+'].v['+vi+'])+1&3];renderRaci()">'+val+'</td>'});
+    h+='</tr>';
+  });
+  h+='</tbody></table></div>';
+  h+='<div style="margin-top:12px;font-size:12px;color:var(--text2)"><strong style="color:var(--green)">R</strong> выполняет &nbsp;<strong style="color:var(--gold)">A</strong> решает &nbsp;<strong style="color:var(--blue)">C</strong> согласовывает &nbsp;<strong style="color:var(--text3)">I</strong> информируется</div>';
+  document.getElementById('raci-content').innerHTML=h;
+}
+
+function renderBudget(){
+  const b=STATE.budget;
+  let h='<div class="budget-grid">';
+  h+='<div class="budget-card"><div class="budget-amount">'+(b.grandTotal/1e6).toFixed(1)+' млн ₽</div><div class="budget-label">Общий бюджет (18 мес)</div></div>';
+  h+='<div class="budget-card"><div class="budget-amount" style="color:var(--green)">0.03%</div><div class="budget-label">от портфеля (7.5 млрд)</div></div>';
+  h+='<div class="budget-card"><div class="budget-amount" style="color:var(--blue)">18</div><div class="budget-label">месяцев</div></div>';
+  h+='<div class="budget-card"><div class="budget-amount" style="color:var(--purple)">6</div><div class="budget-label">фаз</div></div></div>';
+  h+='<table class="data-table"><thead><tr><th>Фаза</th><th>Период</th><th>Статья</th><th>Сумма</th></tr></thead><tbody>';
+  b.phases.forEach(ph=>{
+    ph.items.forEach((it,i)=>{
+      h+='<tr>';
+      if(i===0)h+='<td rowspan="'+ph.items.length+'" style="font-weight:600">'+ph.name+'</td><td rowspan="'+ph.items.length+'">'+ph.months+'</td>';
+      h+='<td>'+it.name+'</td><td style="color:var(--gold)">'+(it.cost?it.cost.toLocaleString('ru-RU')+' ₽':'—')+'</td></tr>';
+    });
+    h+='<tr style="background:var(--card2)"><td colspan="3" style="text-align:right;font-weight:600">Итого:</td><td style="color:var(--gold);font-weight:700">'+ph.total.toLocaleString('ru-RU')+' ₽</td></tr>';
+  });
+  h+='</tbody></table>';
+  document.getElementById('budget-content').innerHTML=h;
+}
+
+function renderFaq(){
+  let h='';
+  STATE.faq.forEach(f=>{h+='<div class="faq-item" onclick="this.classList.toggle(\'open\')"><div class="faq-q">'+f.q+'</div><div class="faq-a">'+f.a+'</div></div>'});
+  document.getElementById('faq-content').innerHTML=h;
+}
+
+function renderFrameworks(){
+  let h='';
+  h+='<div class="fw-card"><h4>Galbraith Star Model</h4><p style="font-size:13px;color:var(--text2);margin-bottom:10px">5 элементов организационного дизайна, которые должны быть согласованы.</p><ul>';
+  h+='<li><strong style="color:var(--gold)">Strategy</strong> — Family Office, портфельное управление</li>';
+  h+='<li><strong style="color:var(--gold)">Structure</strong> — 3 блока: Инвестиции, Девелопмент, Операции</li>';
+  h+='<li><strong style="color:var(--gold)">Processes</strong> — Регламенты, отчётность, инвесткомитет</li>';
+  h+='<li><strong style="color:var(--gold)">Rewards</strong> — KPI + фикс + бонус + % от прироста</li>';
+  h+='<li><strong style="color:var(--gold)">People</strong> — Выращивание руководителей, найм</li></ul></div>';
+  h+='<div class="fw-card"><h4>Kotter\'s 8 Steps</h4><p style="font-size:13px;color:var(--text2);margin-bottom:10px">Как проводить изменения без сопротивления.</p><ul>';
+  ['Создать срочность → «Риск бездействия выше»','Команда изменений → Никита + Владимир','Видение → Family Office','Коммуникация → Выступление перед командой','Устранить препятствия → Снять перегрузку','Быстрые победы → Первые 30 дней','Закрепить → KPI, регламенты','Встроить в культуру → Family Council'].forEach((s,i)=>{h+='<li><strong style="color:var(--gold)">'+(i+1)+'.</strong> '+s+'</li>'});
+  h+='</ul></div>';
+  h+='<div class="fw-card"><h4>RACI</h4><p style="font-size:13px;color:var(--text2)"><strong>R</strong>esponsible — выполняет. <strong>A</strong>ccountable — решает (один!). <strong>C</strong>onsulted — согласовывает. <strong>I</strong>nformed — информируется.</p></div>';
+  h+='<div class="fw-card"><h4>Family Office — принципы</h4><ul style="font-size:13px;color:var(--text2);line-height:1.8">';
+  h+='<li>Управляет <strong>капиталом</strong>, не объектами</li><li>Собственники = стратегия, не операционка</li><li>Инвесткомитет = орган решений</li><li>Family Council = долгосрочная стратегия + наследование</li><li>Ядро 12-18 чел., остальное — подрядчики</li><li>Мотивация = рост капитала</li></ul></div>';
+  document.getElementById('frameworks-content').innerHTML=h;
+}
+
+// ============================================================
+// RENDER ALL
+// ============================================================
+function renderAll(){
+  renderTree('tree-asis', STATE.trees.asis, 'asis');
+  renderTree('tree-transition', STATE.trees.transition, 'transition');
+  renderTree('tree-target', STATE.trees.target, 'target');
+  renderDelta();
+  renderGantt();
+  renderRaci();
+  renderBudget();
+  renderFaq();
+  renderFrameworks();
+}
+renderAll();
+</script>
+</body>
+</html>
