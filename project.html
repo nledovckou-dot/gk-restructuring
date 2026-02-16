@@ -134,9 +134,6 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
 .gantt-move-btn:hover{color:var(--gold)}
 .gantt-mh.editable{cursor:pointer}
 .gantt-mh.editable:hover{color:var(--gold)}
-.gantt-dep-svg{position:absolute;top:0;left:0;pointer-events:none;z-index:1}
-.gantt-dep-svg path{fill:none;stroke:var(--red);stroke-width:1.5;stroke-dasharray:4,3;opacity:.6}
-.gantt-dep-svg polygon{fill:var(--red);opacity:.6}
 
 /* === RISK REGISTER === */
 .risk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
@@ -219,6 +216,32 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
 .presence-user.you .pu-name::after{content:' (ты)';color:var(--text3);font-weight:400;font-size:10px}
 
 /* === PRINT === */
+#mobile-toggle{display:none;position:fixed;top:12px;left:12px;z-index:200;background:var(--card2);border:1px solid var(--border);color:var(--gold);width:40px;height:40px;border-radius:8px;font-size:20px;cursor:pointer;line-height:1}
+@media(max-width:900px){
+  #mobile-toggle{display:block}
+  #sidebar{transform:translateX(-100%);transition:transform .3s ease;width:280px}
+  #sidebar.open{transform:translateX(0)}
+  #main{margin-left:0;padding:16px 12px}
+  .section-header h2{font-size:20px}
+  .dash-grid{grid-template-columns:repeat(2,1fr)!important;gap:8px!important}
+  .dash-card{padding:12px!important}
+  .dc-value{font-size:28px!important}
+  .gantt-grid{min-width:800px!important}
+  .gantt-label{min-width:180px!important;font-size:11px!important;padding:4px 6px!important}
+  .data-table{font-size:11px}
+  .data-table th,.data-table td{padding:6px 8px}
+  .risk-matrix{grid-template-columns:auto repeat(3,60px)}
+  .timeline-track{gap:8px}
+  .progress-row{flex-wrap:wrap}
+  .pr-label{font-size:11px;min-width:100%}
+  .tree-viewport{height:400px!important}
+}
+@media(max-width:480px){
+  .dash-grid{grid-template-columns:1fr!important}
+  .gantt-label{min-width:140px!important;font-size:10px!important}
+  .gantt-toolbar{flex-wrap:wrap;gap:4px}
+  .gantt-toolbar button{font-size:10px;padding:4px 8px}
+}
 @media print{
   #sidebar{display:none}
   #main{margin-left:0;padding:16px}
@@ -234,8 +257,9 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
 </style>
 </head>
 <body>
-<nav id="sidebar">
-  <h1>Проект реструктуризации<br>ГК → Family Office <span style="font-size:10px;color:var(--text3);font-weight:400">v3.5</span></h1>
+<button id="mobile-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">&#9776;</button>
+<nav id="sidebar" onclick="if(window.innerWidth<=900&&event.target.classList.contains('nav-btn'))this.classList.remove('open')">
+  <h1>Проект реструктуризации<br>ГК → Family Office <span style="font-size:10px;color:var(--text3);font-weight:400">v3.6</span></h1>
   <div class="nav-group">
     <div class="nav-group-title">Обзор</div>
     <button class="nav-btn active" data-section="dashboard">Dashboard</button>
@@ -249,7 +273,6 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
   </div>
   <div class="nav-group">
     <div class="nav-group-title">Проект</div>
-    <button class="nav-btn" data-section="gantt">Диаграмма Ганта</button>
     <button class="nav-btn" data-section="raci">RACI-матрица</button>
     <button class="nav-btn" data-section="budget">Бюджет</button>
     <button class="nav-btn" data-section="risks">Риски</button>
@@ -277,9 +300,12 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
   <div id="section-dashboard" class="section active">
     <div class="section-header">
       <h2>Dashboard — обзор проекта</h2>
-      <p>Сводная панель: ключевые метрики, прогресс по фазам, таймлайн.</p>
+      <p>Ключевые метрики, прогресс по фазам и диаграмма Ганта.</p>
     </div>
     <div id="dashboard-content"></div>
+    <div style="margin-top:24px">
+      <div id="gantt-content"></div>
+    </div>
   </div>
 
   <!-- AS-IS -->
@@ -325,11 +351,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
     <div id="delta-content"></div>
   </div>
 
-  <!-- GANTT -->
-  <div id="section-gantt" class="section">
-    <div class="section-header"><h2>Диаграмма Ганта</h2><p>Перетаскивайте задачи мышкой. Тяните за правый край для изменения длительности. Двойной клик — редактирование.</p></div>
-    <div id="gantt-content"></div>
-  </div>
+  <!-- GANTT moved into Dashboard -->
 
   <!-- RACI -->
   <div id="section-raci" class="section">
@@ -858,7 +880,6 @@ function renderGantt(){
   const M=g.months.length;
   const labelW=320;
   let html='<div class="gantt-wrap"><div class="gantt-toolbar">';
-  html+='<button class="'+(g.showDeps?'active':'')+'" onclick="STATE.gantt.showDeps=!STATE.gantt.showDeps;renderGantt()">Зависимости</button>';
   html+='<button onclick="addGanttPhase()">+ Фаза</button>';
   html+='<button onclick="addGanttColumn()">+ Столбец</button>';
   html+='<button onclick="removeGanttColumn()">− Столбец</button>';
@@ -873,9 +894,6 @@ function renderGantt(){
     html+='<div class="gantt-mh editable'+(isMilestone?' milestone':'')+'" title="Клик — переименовать" ondblclick="editGanttMonth('+mi+')">'+m+(msLabel?'<br><span style="color:var(--gold);font-size:8px">'+msLabel.label+'</span>':'')+'</div>';
   });
 
-  // Track row positions for dependency arrows
-  let rowIndex=0;
-  const rowMap={}; // rowMap[pi_ti] = rowIndex
 
   // phases + tasks
   g.phases.forEach((phase,pi)=>{
@@ -896,10 +914,8 @@ function renderGantt(){
       if(i===0) html+='<div class="gantt-cell phase-row" style="position:relative;overflow:visible" colspan="'+M+'"><div style="position:absolute;top:0;left:0;height:100%;width:'+phBarW+';background:'+phColor+';opacity:0.1;border-radius:4px;pointer-events:none"></div></div>';
       else html+='<div class="gantt-cell phase-row"></div>';
     }
-    rowIndex++;
 
     phase.tasks.forEach((task,ti)=>{
-      rowMap[pi+'_'+ti]=rowIndex;
       const prog=task.progress||0;
       const progColor=prog>=100?'var(--green)':prog>0?'var(--gold)':'var(--text3)';
 
@@ -930,16 +946,10 @@ function renderGantt(){
         }
         html+='</div>';
       }
-      rowIndex++;
-    });
+      });
   });
 
   html+='</div>';
-
-  // Dependency arrows overlay (rendered after grid for positioning)
-  if(g.showDeps){
-    html+='<svg class="gantt-dep-svg" id="gantt-dep-svg"></svg>';
-  }
 
   html+='</div></div>';
 
@@ -954,62 +964,6 @@ function renderGantt(){
 
   document.getElementById('gantt-content').innerHTML=html;
 
-  // Draw dependency arrows after render
-  if(g.showDeps){
-    requestAnimationFrame(()=>drawDependencies(rowMap));
-  }
-}
-
-function drawDependencies(rowMap){
-  const svg=document.getElementById('gantt-dep-svg');
-  const scroll=document.getElementById('gantt-scroll');
-  const grid=document.getElementById('gantt-grid');
-  if(!svg||!grid)return;
-
-  const g=STATE.gantt;
-  const M=g.months.length;
-  const gridRect=grid.getBoundingClientRect();
-  const scrollRect=scroll.getBoundingClientRect();
-
-  // Get cell dimensions from first data cell
-  const firstCell=grid.querySelector('.gantt-cell:not(.phase-row)');
-  if(!firstCell)return;
-  const cellW=firstCell.offsetWidth;
-  const cellH=firstCell.offsetHeight;
-  const labelW=320;
-
-  svg.setAttribute('width',grid.scrollWidth);
-  svg.setAttribute('height',grid.scrollHeight);
-  svg.style.width=grid.scrollWidth+'px';
-  svg.style.height=grid.scrollHeight+'px';
-
-  let paths='';
-  g.phases.forEach((phase,pi)=>{
-    phase.tasks.forEach((task,ti)=>{
-      if(!task.deps||!task.deps.length)return;
-      const toRow=rowMap[pi+'_'+ti];
-      if(toRow===undefined)return;
-
-      task.deps.forEach(dep=>{
-        const fromRow=rowMap[dep[0]+'_'+dep[1]];
-        if(fromRow===undefined)return;
-        const fromTask=g.phases[dep[0]].tasks[dep[1]];
-
-        // Calculate positions
-        const fromX=labelW+(fromTask.s+fromTask.d)*cellW;
-        const fromY=(fromRow+0.5)*(cellH+1)+32; // approximate header height
-        const toX=labelW+task.s*cellW;
-        const toY=(toRow+0.5)*(cellH+1)+32;
-
-        // Simple curved arrow
-        const midX=(fromX+toX)/2;
-        paths+=`<path d="M${fromX},${fromY} C${midX},${fromY} ${midX},${toY} ${toX},${toY}"/>`;
-        // Arrowhead
-        paths+=`<polygon points="${toX},${toY} ${toX-6},${toY-3} ${toX-6},${toY+3}"/>`;
-      });
-    });
-  });
-  svg.innerHTML=paths;
 }
 
 function startGanttDrag(e,pi,ti){
