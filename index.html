@@ -260,7 +260,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
 <body>
 <button id="mobile-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">&#9776;</button>
 <nav id="sidebar" onclick="if(window.innerWidth<=900&&event.target.classList.contains('nav-btn'))this.classList.remove('open')">
-  <h1>Проект реструктуризации<br>ГК → Family Office <span style="font-size:10px;color:var(--text3);font-weight:400">v3.6</span></h1>
+  <h1>Проект реструктуризации<br>ГК → Family Office <span style="font-size:10px;color:var(--text3);font-weight:400">v3.7</span></h1>
   <div class="nav-group">
     <div class="nav-group-title">Обзор</div>
     <button class="nav-btn active" data-section="dashboard">Dashboard</button>
@@ -801,13 +801,52 @@ function renderTree(containerId, treeData, treeName) {
   }
   walk(tree);
 
-  container.innerHTML=`<div class="tree-controls"><button onclick="zoomTree('${containerId}','${treeName}',0.1)" title="Увеличить">+</button><button onclick="zoomTree('${containerId}','${treeName}',-0.1)" title="Уменьшить">&minus;</button><button onclick="treeZoom['${containerId}']=1;renderTree('${containerId}',STATE.trees.${treeName},'${treeName}')" title="Сбросить">1:1</button></div><div class="tree-scroll"><div class="tree-inner" style="transform:scale(${z});width:${totalW}px;height:${totalH}px"><svg class="tree-svg" width="${totalW}" height="${totalH}">${svgPaths}</svg><div class="tree-nodes" style="width:${totalW}px;height:${totalH}px">${nodesHtml}</div></div></div>`;
+  container.innerHTML=`<div class="tree-controls"><button onclick="zoomTree('${containerId}','${treeName}',0.1)" title="Увеличить">+</button><button onclick="zoomTree('${containerId}','${treeName}',-0.1)" title="Уменьшить">&minus;</button><button onclick="treeZoom['${containerId}']=1;renderTree('${containerId}',STATE.trees.${treeName},'${treeName}')" title="Сбросить">1:1</button><button onclick="exportTreeSVG('${containerId}','${treeName}')" title="Скачать SVG">&#8615;</button></div><div class="tree-scroll"><div class="tree-inner" style="transform:scale(${z});width:${totalW}px;height:${totalH}px"><svg class="tree-svg" width="${totalW}" height="${totalH}">${svgPaths}</svg><div class="tree-nodes" style="width:${totalW}px;height:${totalH}px">${nodesHtml}</div></div></div>`;
   container.querySelector('.tree-scroll').scrollLeft=(totalW*z-container.clientWidth)/2;
+
+  // Pinch-to-zoom on trackpad
+  const scrollEl=container.querySelector('.tree-scroll');
+  scrollEl.addEventListener('wheel',function(e){
+    if(e.ctrlKey||e.metaKey){
+      e.preventDefault();
+      const delta=e.deltaY>0?-0.05:0.05;
+      treeZoom[containerId]=Math.max(0.4,Math.min(1.5,(treeZoom[containerId]||1)+delta));
+      renderTree(containerId,STATE.trees[treeName],treeName);
+    }
+  },{passive:false});
 }
 
 function zoomTree(cid,tname,delta){
   treeZoom[cid]=Math.max(0.4,Math.min(1.5,(treeZoom[cid]||1)+delta));
   renderTree(cid,STATE.trees[tname],tname);
+}
+
+function exportTreeSVG(containerId,treeName){
+  const container=document.getElementById(containerId);
+  const inner=container.querySelector('.tree-inner');
+  const svgEl=container.querySelector('.tree-svg');
+  const nodes=container.querySelectorAll('.tn');
+  const w=parseInt(svgEl.getAttribute('width')), h=parseInt(svgEl.getAttribute('height'));
+
+  // Build standalone SVG with embedded nodes
+  let svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="background:#0D0B0E">`;
+  svg+=`<style>.path{fill:none;stroke:#2A2433;stroke-width:2.5;stroke-linecap:round}.box{rx:10;fill:#1A1620;stroke:#2A2433;stroke-width:1.5}.title{font:bold 13px system-ui;fill:#E8E0F0;text-anchor:middle}.sub{font:11px system-ui;fill:#A898B8;text-anchor:middle}.people{font:10px system-ui;fill:#6B6573;text-anchor:middle}</style>`;
+  // Copy paths
+  svgEl.querySelectorAll('path').forEach(p=>{ svg+=`<path class="path" d="${p.getAttribute('d')}"/>`; });
+  // Convert HTML nodes to SVG rects+text
+  nodes.forEach(n=>{
+    const left=parseInt(n.style.left), top=parseInt(n.style.top), nw=parseInt(n.style.width)||170;
+    svg+=`<rect class="box" x="${left}" y="${top}" width="${nw}" height="64"/>`;
+    const titleEl=n.querySelector('.tn-title');
+    if(titleEl) svg+=`<text class="title" x="${left+nw/2}" y="${top+28}">${titleEl.textContent}</text>`;
+    const subEl=n.querySelector('.tn-sub');
+    if(subEl) svg+=`<text class="sub" x="${left+nw/2}" y="${top+44}">${subEl.textContent}</text>`;
+    const pplEl=n.querySelector('.tn-people');
+    if(pplEl) svg+=`<text class="people" x="${left+nw/2}" y="${top+58}">${pplEl.textContent}</text>`;
+  });
+  svg+=`</svg>`;
+  const blob=new Blob([svg],{type:'image/svg+xml'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=treeName+'-structure.svg';a.click();
 }
 
 function findNode(tree,id){
@@ -1168,12 +1207,28 @@ function renderDelta(){
 }
 
 let raciFilter='';
+let raciShowOverlap=false;
 function renderRaci(){
   const r=STATE.raci;
+
+  // Compute overlaps: roles with R in 3+ processes = overloaded
+  const overloadMap={}; // ri -> count of R
+  const overloadRows=new Set(); // process indices where overloaded role has R
+  r.roles.forEach((role,ri)=>{
+    const rCount=r.processes.filter(p=>p.v[ri]==='R').length;
+    overloadMap[ri]=rCount;
+    if(raciShowOverlap && rCount>=3){
+      r.processes.forEach((p,pi)=>{ if(p.v[ri]==='R') overloadRows.add(pi); });
+    }
+  });
+
   // Action toolbar
   let h='<div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
   h+='<button style="padding:4px 10px;border-radius:6px;border:1px solid var(--green);background:var(--card);color:var(--green);cursor:pointer;font-size:12px" onclick="addRaciProcess()">+ Процесс</button>';
   h+='<button style="padding:4px 10px;border-radius:6px;border:1px solid var(--blue);background:var(--card);color:var(--blue);cursor:pointer;font-size:12px" onclick="addRaciRole()">+ Роль</button>';
+  const ovBorder=raciShowOverlap?'var(--red)':'var(--border)';
+  const ovColor=raciShowOverlap?'var(--red)':'var(--text2)';
+  h+='<button style="padding:4px 10px;border-radius:6px;border:1px solid '+ovBorder+';background:var(--card);color:'+ovColor+';cursor:pointer;font-size:12px" onclick="raciShowOverlap=!raciShowOverlap;renderRaci()">Пересечения</button>';
   h+='<span style="margin-left:8px;font-size:11px;color:var(--text3)">Двойной клик на название = редактировать</span>';
   h+='</div>';
   // Filter toolbar
@@ -1187,28 +1242,47 @@ function renderRaci(){
   h+='</div>';
 
   h+='<div style="overflow-x:auto"><table class="data-table"><thead><tr><th>Процесс</th>';
-  r.roles.forEach((role,ri)=>h+='<th style="text-align:center;cursor:pointer" ondblclick="editRaciRole('+ri+')" title="Двойной клик — редактировать">'+role+'</th>');
+  r.roles.forEach((role,ri)=>{
+    const isOverloaded=raciShowOverlap&&overloadMap[ri]>=3;
+    h+='<th style="text-align:center;cursor:pointer'+(isOverloaded?';color:var(--red);background:rgba(212,64,64,0.1)':'')+'" ondblclick="editRaciRole('+ri+')" title="'+(isOverloaded?'Перегрузка: R в '+overloadMap[ri]+' процессах!':'Двойной клик — редактировать')+'">'+role+(isOverloaded?' <span style="font-size:9px">'+overloadMap[ri]+'R</span>':'')+'</th>';
+  });
   h+='</tr></thead><tbody>';
   r.processes.forEach((p,pi)=>{
     if(raciFilter){
       const ri=r.roles.indexOf(raciFilter);
       if(ri===-1||!(p.v[ri]==='R'||p.v[ri]==='A'))return;
     }
-    h+='<tr><td style="font-weight:600;cursor:pointer;position:relative" ondblclick="editRaciProcess('+pi+')">';
+    const isHighlighted=raciShowOverlap&&overloadRows.has(pi);
+    h+='<tr style="'+(isHighlighted?'background:rgba(212,64,64,0.08)':'')+'"><td style="font-weight:600;cursor:pointer;position:relative" ondblclick="editRaciProcess('+pi+')">';
     h+='<span>'+p.name+'</span>';
     h+='<button style="position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;opacity:0.4" onclick="deleteRaciProcess('+pi+')" title="Удалить">&times;</button>';
     h+='</td>';
-    p.v.forEach((val,vi)=>{h+='<td class="raci-cell raci-'+val+'" onclick="STATE.raci.processes['+pi+'].v['+vi+']=\'RACI\'[\'RACI\'.indexOf(STATE.raci.processes['+pi+'].v['+vi+'])+1&3];renderRaci();syncToFirebase()">'+val+'</td>'});
+    p.v.forEach((val,vi)=>{
+      const cellOverload=raciShowOverlap&&val==='R'&&overloadMap[vi]>=3;
+      h+='<td class="raci-cell raci-'+val+'" style="'+(cellOverload?'box-shadow:inset 0 0 0 2px var(--red)':'')+'" onclick="STATE.raci.processes['+pi+'].v['+vi+']=\'RACI\'[\'RACI\'.indexOf(STATE.raci.processes['+pi+'].v['+vi+'])+1&3];renderRaci();syncToFirebase()">'+val+'</td>';
+    });
     h+='</tr>';
   });
   h+='</tbody></table></div>';
   h+='<div style="margin-top:12px;font-size:12px;color:var(--text2)"><strong style="color:var(--green)">R</strong> выполняет &nbsp;<strong style="color:var(--gold)">A</strong> решает &nbsp;<strong style="color:var(--blue)">C</strong> согласовывает &nbsp;<strong style="color:var(--text3)">I</strong> информируется</div>';
+
   if(raciFilter){
     const ri=r.roles.indexOf(raciFilter);
     const rCount=r.processes.filter(p=>p.v[ri]==='R').length;
     const aCount=r.processes.filter(p=>p.v[ri]==='A').length;
     h+='<div style="margin-top:8px;font-size:12px;color:var(--gold)">'+raciFilter+': <strong>'+rCount+'</strong> задач выполняет (R), <strong>'+aCount+'</strong> решает (A)</div>';
   }
+  if(raciShowOverlap){
+    h+='<div style="margin-top:12px;padding:10px;background:rgba(212,64,64,0.08);border:1px solid var(--red);border-radius:8px;font-size:12px">';
+    h+='<strong style="color:var(--red)">Анализ пересечений:</strong><br>';
+    r.roles.forEach((role,ri)=>{
+      if(overloadMap[ri]>=3) h+='<span style="color:var(--red)">'+role+'</span> — R в '+overloadMap[ri]+' процессах (перегрузка)<br>';
+    });
+    const noOverlap=!r.roles.some((role,ri)=>overloadMap[ri]>=3);
+    if(noOverlap) h+='<span style="color:var(--green)">Перегрузок не обнаружено (порог: 3+ процессов с R у одного лица)</span>';
+    h+='</div>';
+  }
+
   document.getElementById('raci-content').innerHTML=h;
 }
 function editRaciProcess(pi){
