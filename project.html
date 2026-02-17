@@ -138,6 +138,22 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
 .gantt-move-btn:hover{color:var(--gold)}
 .gantt-mh.editable{cursor:pointer}
 .gantt-mh.editable:hover{color:var(--gold)}
+.gantt-label.subtask-row{background:var(--bg)}
+.gantt-label.subtask-row .gl-name{font-size:10px;color:var(--text2);padding-left:4px}
+.gantt-label .gl-inline{background:none;border:none;color:inherit;font:inherit;padding:0;outline:none;width:100%}
+.gantt-label .gl-inline:focus{outline:1px solid var(--gold);border-radius:3px;padding:0 4px}
+.gantt-label .gl-inline-owner{background:none;border:none;color:var(--text3);font-size:9px;padding:0;outline:none;white-space:nowrap;width:60px}
+.gantt-label .gl-inline-owner:focus{outline:1px solid var(--gold);border-radius:3px;padding:0 2px}
+.gantt-label .gl-progress-click{cursor:pointer;user-select:none}
+.gantt-label .gl-progress-click:hover{text-decoration:underline}
+.tree-conn-svg{position:absolute;top:0;left:0;pointer-events:none;z-index:1}
+.tree-conn-svg path{stroke:var(--gold);stroke-width:2;fill:none;stroke-dasharray:6,4;opacity:0.7}
+.tree-conn-btn{position:absolute;top:10px;left:10px;z-index:5}
+.tree-conn-btn button{padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text2);cursor:pointer;font-size:11px;transition:all .2s}
+.tree-conn-btn button:hover{border-color:var(--gold);color:var(--gold)}
+.tree-conn-btn button.active{border-color:var(--gold);color:var(--gold);background:var(--card2)}
+.miro-frame{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-top:16px}
+.miro-frame iframe{width:100%;height:500px;border:none}
 
 /* === RISK REGISTER === */
 .risk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
@@ -272,7 +288,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
 <body>
 <button id="mobile-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">&#9776;</button>
 <nav id="sidebar" onclick="if(window.innerWidth<=900&&event.target.classList.contains('nav-btn'))this.classList.remove('open')">
-  <h1>Проект реструктуризации<br>ГК → Family Office <span style="font-size:10px;color:var(--text3);font-weight:400">v3.9</span></h1>
+  <h1>Проект реструктуризации<br>ГК → Family Office <span style="font-size:10px;color:var(--text3);font-weight:400">v4.0</span></h1>
   <div class="nav-group">
     <div class="nav-group-title">Обзор</div>
     <button class="nav-btn active" data-section="dashboard">Dashboard</button>
@@ -336,7 +352,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
       <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div> Владимир</div>
       <div class="legend-item"><div class="legend-dot" style="background:var(--purple)"></div> Совместные</div>
     </div>
-    <div id="tree-asis" class="tree-viewport" style="height:620px"></div>
+    <div id="tree-asis" class="tree-viewport" style="height:700px"></div>
   </div>
 
   <!-- TRANSITION -->
@@ -357,6 +373,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
       <span class="tag">Family Office</span><span class="tag">Инвестиционная платформа</span>
     </div>
     <div id="tree-target" class="tree-viewport" style="height:560px"></div>
+    <div id="miro-container" style="margin-top:20px"></div>
   </div>
 
   <!-- DELTA -->
@@ -417,33 +434,37 @@ const STATE = {
   // ---------- TREE DATA ----------
   trees: {
     asis: {
-      id:'root', label:'Собственники', sub:'АН + ПВ', color:'c-gold', children:[
-        { id:'trust', label:'ГК ТРАСТ', sub:'Контроль и комплаенс', color:'c-red', children:[
-          { id:'t1', label:'Бухгалтерия', sub:'Татьяна В.', color:'c-red' },
-          { id:'t2', label:'Юридический', sub:'Влад, Андрей', color:'c-red' },
-          { id:'t3', label:'Экономика', sub:'Екатерина', color:'c-red' },
-          { id:'t4', label:'Кадры', sub:'Наталья Т.', color:'c-red' },
-          { id:'t5', label:'Безопасность', sub:'Алексей П.', color:'c-red' },
-          { id:'t6', label:'IT', sub:'Павел Э., Константин', color:'c-red' }
+      id:'root', label:'Владельцы', sub:'Андрей Николаевич + Павел Викторович', color:'c-gold', children:[
+        { id:'trust', label:'ГК ТРАСТ', sub:'Контроль и комплаенс', color:'c-red', people:'Дублируется по КАЖДОМУ объекту', children:[
+          { id:'t1', label:'Бухгалтерия', sub:'Главный бухгалтер', color:'c-red', people:'Татьяна Викторовна' },
+          { id:'t2', label:'Юридический', sub:'Юр. обеспечение', color:'c-red', people:'Влад, Андрей' },
+          { id:'t3', label:'Экономика', sub:'Финансовый контроль', color:'c-red', people:'Екатерина' },
+          { id:'t4', label:'Кадры', sub:'Кадровый учёт', color:'c-red', people:'Наталья Тарасова' },
+          { id:'t5', label:'Безопасность', sub:'Служба безопасности', color:'c-red', people:'Алексей Петрович' },
+          { id:'t6', label:'IT', sub:'Администрирование', color:'c-red', people:'Павел Эдуардович, Константин' }
         ]},
         { id:'nikita', label:'Никита', sub:'Руководитель направления', color:'c-green', children:[
-          { id:'n1', label:'Люсиновская', sub:'12 900 м²', color:'c-green', badge:'Доход', badgeCls:'badge-income' },
-          { id:'n2', label:'Никитина 20', sub:'3 900 м²', color:'c-orange', badge:'Ремонт', badgeCls:'badge-renovation' },
-          { id:'n3', label:'Никитина 20/2', sub:'3 400 м²', color:'c-orange', badge:'Ремонт', badgeCls:'badge-renovation' },
-          { id:'n4', label:'Земля Никитина', sub:'15 соток', color:'c-blue', badge:'Стройка', badgeCls:'badge-construction' },
+          { id:'n1', label:'Люсиновская', sub:'12 900 м²', color:'c-green', badge:'Доход', badgeCls:'badge-income', people:'Иван, Софья, Алексей (гл.инж.), Максим, Николай' },
+          { id:'n1r', label:'Кап.ремонт Люсинов.', sub:'~3 500 м²', color:'c-orange', badge:'Ремонт', badgeCls:'badge-renovation', people:'Архитектура, подрядчики, Людмила (бухг.)' },
+          { id:'n2', label:'Никитина 20', sub:'3 900 м²', color:'c-orange', badge:'Ремонт', badgeCls:'badge-renovation', people:'ТРАСТ, подрядчики' },
+          { id:'n3', label:'Никитина 20/2', sub:'3 400 м²', color:'c-orange', badge:'Ремонт', badgeCls:'badge-renovation', people:'УК Сибирь — технадзор, подрядчики' },
+          { id:'n4', label:'Земля Никитина', sub:'15 соток, ~6-8 000 м²', color:'c-blue', badge:'Стройка', badgeCls:'badge-construction', people:'ТРАСТ' },
           { id:'n5', label:'Планета-05', sub:'1 300 м²', color:'c-green', badge:'Доход', badgeCls:'badge-income' },
-          { id:'n6', label:'Квартиры', sub:'18 + 4 объекта', color:'c-green', badge:'Доход', badgeCls:'badge-income' },
-          { id:'n7', label:'Поиск бизнесов', sub:'Стратегия', color:'c-green' }
+          { id:'n6', label:'Квартиры', sub:'18 + 4 объекта', color:'c-green', badge:'Доход', badgeCls:'badge-income', people:'Ольга, Мария' },
+          { id:'n7', label:'Поиск бизнесов', sub:'Анализ, покупка', color:'c-green', people:'Иван' },
+          { id:'n8', label:'Структура / Стандарт ФО', sub:'Процессы, автоматизация', color:'c-green' }
         ]},
         { id:'vladimir', label:'Владимир', sub:'Руководитель направления', color:'c-blue', children:[
-          { id:'v1', label:'Элкопром', sub:'7 620 м²', color:'c-blue', badge:'Доход', badgeCls:'badge-income' },
-          { id:'v2', label:'БЦ Кубик', sub:'1 300 м²', color:'c-blue', badge:'Доход', badgeCls:'badge-income' },
-          { id:'v3', label:'Тулинская', sub:'1 000 м²', color:'c-blue', badge:'Доход', badgeCls:'badge-income' },
-          { id:'v4', label:'КП Сочи', sub:'31 дом, 150 сот.', color:'c-blue', badge:'Стройка', badgeCls:'badge-construction' },
-          { id:'v5', label:'Стройка Земля', sub:'5 участков', color:'c-blue', badge:'Стройка', badgeCls:'badge-construction' },
-          { id:'v6', label:'УК Империя', sub:'Управление', color:'c-blue' }
+          { id:'v1', label:'Элкопром', sub:'7 620 м²', color:'c-blue', badge:'Доход', badgeCls:'badge-income', people:'Анна (бухг.), инженер, охрана, менеджер продаж' },
+          { id:'v1r', label:'Кап.ремонт Элкопром', sub:'~7 620 м²', color:'c-orange', badge:'Ремонт', badgeCls:'badge-renovation', people:'Подрядчики, Анна (бухг.)' },
+          { id:'v2', label:'БЦ Кубик', sub:'1 300 м²', color:'c-blue', badge:'Доход', badgeCls:'badge-income', people:'Иван' },
+          { id:'v3', label:'Тулинская', sub:'1 000 м²', color:'c-blue', badge:'Доход', badgeCls:'badge-income', people:'Иван, Ольга' },
+          { id:'v4', label:'КП Сочи Барановка', sub:'31 дом, ~150 сот.', color:'c-blue', badge:'Стройка', badgeCls:'badge-construction', people:'Слава, Дмитрий' },
+          { id:'v5', label:'Стройка Земля', sub:'5 участков, ~40 сот.', color:'c-blue', badge:'Стройка', badgeCls:'badge-construction', people:'Слава, Дмитрий' },
+          { id:'v6', label:'УК Империя', sub:'Управление', color:'c-blue', people:'ТВО' },
+          { id:'v7', label:'Структура / Стандарт ФО', sub:'Процессы, автоматизация', color:'c-blue' }
         ]},
-        { id:'shared', label:'Maison Rouge', sub:'Ресторан (совместно)', color:'c-purple' }
+        { id:'shared', label:'Maison Rouge', sub:'Доп. проект руководства', color:'c-purple', people:'Никита, АН, Владимир + команда MR' }
       ]
     },
     transition: {
@@ -504,6 +525,11 @@ const STATE = {
       ]
     }
   },
+
+  // ---------- CONNECTIONS (tree arrows) ----------
+  connections: { asis:[], transition:[], target:[] },
+  // ---------- MIRO ----------
+  miroUrl: '',
 
   // ---------- DELTA ----------
   delta: {
@@ -780,6 +806,8 @@ function layoutTree(node, depth=0, x={val:0}) {
 }
 
 const treeZoom={};
+let connectMode={active:false,treeName:null,fromId:null};
+
 function renderTree(containerId, treeData, treeName) {
   const tree = JSON.parse(JSON.stringify(treeData));
   layoutTree(tree);
@@ -799,6 +827,8 @@ function renderTree(containerId, treeData, treeName) {
 
   let svgPaths='';
   let nodesHtml='';
+  // Store node positions for connection drawing
+  const nodePositions={};
 
   function px(node){return padX+node._x*gapX+(gapX-nodeW)/2}
   function py(node){return padY+node._y*gapY}
@@ -817,13 +847,39 @@ function renderTree(containerId, treeData, treeName) {
     let badge='';
     if(node.badge) badge=`<span class="tn-badge ${node.badgeCls||''}">${node.badge}</span>`;
     const ox=node._ox||0, oy=node._oy||0;
+    const nx=px(node)+ox, ny=py(node)+oy;
+    nodePositions[node.id]={x:nx,y:ny,cx:nx+nodeW/2,cy:ny+nodeH/2};
     const funcCount=node.raciLinks?node.raciLinks.length:0;
     const funcBadge=funcCount?`<div style="font-size:9px;color:var(--blue);margin-top:2px">${funcCount} функц.</div>`:'';
-    nodesHtml+=`<div class="tn ${cls}" style="left:${px(node)+ox}px;top:${py(node)+oy}px;width:${nodeW}px;cursor:grab" onclick="editTreeNode('${treeName}','${node.id}')" onmousedown="startNodeDrag(event,'${treeName}','${node.id}',${px(node)+ox},${py(node)+oy})" title="Клик = редактировать, перетащить = переместить">${badge}<div class="tn-title">${node.label}</div>${node.sub?'<div class="tn-sub">'+node.sub+'</div>':''}${node.people?'<div class="tn-people">'+node.people+'</div>':''}${funcBadge}</div>`;
+    const isConnMode=connectMode.active&&connectMode.treeName===treeName;
+    const connHighlight=isConnMode?'outline:2px dashed var(--gold);outline-offset:2px;':'';
+    const connFrom=connectMode.active&&connectMode.fromId===node.id?'outline:3px solid var(--green);outline-offset:2px;':'';
+    const clickFn=isConnMode?`handleConnectClick(event,'${treeName}','${node.id}')`:`editTreeNode('${treeName}','${node.id}')`;
+    const mousedownFn=isConnMode?'':`startNodeDrag(event,'${treeName}','${node.id}',${nx},${ny})`;
+    nodesHtml+=`<div class="tn ${cls}" style="left:${nx}px;top:${ny}px;width:${nodeW}px;cursor:${isConnMode?'crosshair':'grab'};${connHighlight}${connFrom}" onclick="${clickFn}" onmousedown="${mousedownFn}" title="${isConnMode?'Клик = выбрать для связи':'Клик = редактировать, перетащить = переместить'}">${badge}<div class="tn-title">${node.label}</div>${node.sub?'<div class="tn-sub">'+node.sub+'</div>':''}${node.people?'<div class="tn-people">'+node.people+'</div>':''}${funcBadge}</div>`;
   }
   walk(tree);
 
-  container.innerHTML=`<div class="tree-controls"><button onclick="zoomTree('${containerId}','${treeName}',0.1)" title="Увеличить">+</button><button onclick="zoomTree('${containerId}','${treeName}',-0.1)" title="Уменьшить">&minus;</button><button onclick="treeZoom['${containerId}']=1;renderTree('${containerId}',STATE.trees.${treeName},'${treeName}')" title="Сбросить">1:1</button><button onclick="exportTreeSVG('${containerId}','${treeName}')" title="Скачать SVG">&#8615;</button></div><div class="tree-scroll"><div class="tree-inner" style="transform:scale(${z});width:${totalW}px;height:${totalH}px"><svg class="tree-svg" width="${totalW}" height="${totalH}">${svgPaths}</svg><div class="tree-nodes" style="width:${totalW}px;height:${totalH}px">${nodesHtml}</div></div></div>`;
+  // Draw custom connections
+  let connSvg='';
+  const conns=STATE.connections[treeName]||[];
+  conns.forEach((conn,ci)=>{
+    const from=nodePositions[conn.from];
+    const to=nodePositions[conn.to];
+    if(from&&to){
+      const mx=(from.cx+to.cx)/2, my=(from.cy+to.cy)/2;
+      connSvg+=`<path d="M${from.cx},${from.cy} Q${mx},${my-40} ${to.cx},${to.cy}" style="stroke:var(--gold);stroke-width:2;fill:none;stroke-dasharray:6,4;opacity:0.7;pointer-events:stroke;cursor:pointer" onclick="deleteConnection('${treeName}',${ci})"/>`;
+      // Arrow at end
+      const angle=Math.atan2(to.cy-my+40,to.cx-mx);
+      const ax=to.cx-10*Math.cos(angle), ay=to.cy-10*Math.sin(angle);
+      connSvg+=`<polygon points="${to.cx},${to.cy} ${ax-5*Math.cos(angle+Math.PI/6)},${ay-5*Math.sin(angle+Math.PI/6)} ${ax-5*Math.cos(angle-Math.PI/6)},${ay-5*Math.sin(angle-Math.PI/6)}" fill="var(--gold)" opacity="0.7"/>`;
+    }
+  });
+
+  const isConnActive=connectMode.active&&connectMode.treeName===treeName;
+  const connBtnCls=isConnActive?'active':'';
+
+  container.innerHTML=`<div class="tree-controls"><button onclick="zoomTree('${containerId}','${treeName}',0.1)" title="Увеличить">+</button><button onclick="zoomTree('${containerId}','${treeName}',-0.1)" title="Уменьшить">&minus;</button><button onclick="treeZoom['${containerId}']=1;renderTree('${containerId}',STATE.trees.${treeName},'${treeName}')" title="Сбросить">1:1</button><button onclick="exportTreeSVG('${containerId}','${treeName}')" title="Скачать SVG">&#8615;</button></div><div class="tree-conn-btn"><button class="${connBtnCls}" onclick="toggleConnectMode('${treeName}','${containerId}')" title="Режим рисования связей">&#128279; Связи</button></div><div class="tree-scroll"><div class="tree-inner" style="transform:scale(${z});width:${totalW}px;height:${totalH}px"><svg class="tree-svg" width="${totalW}" height="${totalH}">${svgPaths}</svg><svg class="tree-conn-svg" width="${totalW}" height="${totalH}">${connSvg}</svg><div class="tree-nodes" style="width:${totalW}px;height:${totalH}px">${nodesHtml}</div></div></div>`;
   container.querySelector('.tree-scroll').scrollLeft=(totalW*z-container.clientWidth)/2;
 
   // Pinch-to-zoom on trackpad
@@ -836,6 +892,42 @@ function renderTree(containerId, treeData, treeName) {
       renderTree(containerId,STATE.trees[treeName],treeName);
     }
   },{passive:false});
+}
+
+function toggleConnectMode(treeName,containerId){
+  if(connectMode.active&&connectMode.treeName===treeName){
+    connectMode={active:false,treeName:null,fromId:null};
+  } else {
+    connectMode={active:true,treeName:treeName,fromId:null};
+  }
+  renderTree(containerId,STATE.trees[treeName],treeName);
+}
+
+function handleConnectClick(e,treeName,nodeId){
+  e.stopPropagation();
+  if(!connectMode.fromId){
+    connectMode.fromId=nodeId;
+    renderTree('tree-'+treeName,STATE.trees[treeName],treeName);
+  } else {
+    if(connectMode.fromId!==nodeId){
+      if(!STATE.connections[treeName]) STATE.connections[treeName]=[];
+      // Check duplicate
+      const exists=STATE.connections[treeName].some(c=>c.from===connectMode.fromId&&c.to===nodeId);
+      if(!exists){
+        STATE.connections[treeName].push({from:connectMode.fromId,to:nodeId});
+        syncToFirebase();
+      }
+    }
+    connectMode.fromId=null;
+    renderTree('tree-'+treeName,STATE.trees[treeName],treeName);
+  }
+}
+
+function deleteConnection(treeName,ci){
+  if(!confirm('Удалить связь?'))return;
+  STATE.connections[treeName].splice(ci,1);
+  renderTree('tree-'+treeName,STATE.trees[treeName],treeName);
+  syncToFirebase();
 }
 
 function zoomTree(cid,tname,delta){
@@ -1002,10 +1094,10 @@ function renderGantt(){
   html+='<button onclick="addGanttPhase()">+ Фаза</button>';
   html+='<button onclick="addGanttColumn()">+ Столбец</button>';
   html+='<button onclick="removeGanttColumn()">− Столбец</button>';
-  html+='<span style="font-size:11px;color:var(--text3);margin-left:8px">Двойной клик на фазу = редактировать</span>';
+  html+='<span style="font-size:11px;color:var(--text3);margin-left:8px">Клик на название/ответственного = редактировать инлайн | % = переключить | Двойной клик на бар = модальное окно</span>';
   html+='</div><div class="gantt-scroll" id="gantt-scroll"><div class="gantt-grid" id="gantt-grid" style="grid-template-columns:'+labelW+'px repeat('+M+',1fr)">';
 
-  // header with milestones — click to rename months
+  // header with milestones
   html+='<div class="gantt-corner">Задача / Ответственный</div>';
   g.months.forEach((m,mi)=>{
     const isMilestone=g.milestones.some(ms=>ms.month===mi);
@@ -1013,39 +1105,64 @@ function renderGantt(){
     html+='<div class="gantt-mh editable'+(isMilestone?' milestone':'')+'" title="Клик — переименовать" ondblclick="editGanttMonth('+mi+')">'+m+(msLabel?'<br><span style="color:var(--gold);font-size:8px">'+msLabel.label+'</span>':'')+'</div>';
   });
 
+  // count all tasks including subtasks for stats
+  let totalTasks=0,doneTasks=0;
 
-  // phases + tasks
+  // phases + tasks + subtasks
   g.phases.forEach((phase,pi)=>{
-    const phaseTotal=phase.tasks.length;
-    const phaseAvg=phaseTotal?Math.round(phase.tasks.reduce((s,t)=>s+(t.progress||0),0)/phaseTotal):0;
-    const phaseDone=phase.tasks.filter(t=>(t.progress||0)>=100).length;
+    let phaseTaskCount=0, phaseProg=0, phaseDone=0;
+    phase.tasks.forEach(t=>{
+      phaseTaskCount++; totalTasks++;
+      const p=t.progress||0; phaseProg+=p;
+      if(p>=100){phaseDone++;doneTasks++}
+      if(t.subs) t.subs.forEach(st=>{
+        phaseTaskCount++; totalTasks++;
+        const sp=st.progress||0; phaseProg+=sp;
+        if(sp>=100){phaseDone++;doneTasks++}
+      });
+    });
+    const phaseAvg=phaseTaskCount?Math.round(phaseProg/phaseTaskCount):0;
     const phColor=phaseAvg>=100?'var(--green)':phaseAvg>0?'var(--gold)':'var(--text3)';
+
     html+='<div class="gantt-label phase-row" style="cursor:pointer;justify-content:space-between" ondblclick="editGanttPhase('+pi+')">';
     html+='<span style="flex:1;display:flex;align-items:center;gap:8px">'+phase.name;
-    html+='<span style="font-size:10px;color:'+phColor+';white-space:nowrap" title="'+phaseDone+' из '+phaseTotal+' задач завершено">'+phaseAvg+'% ('+phaseDone+'/'+phaseTotal+')</span></span>';
+    html+='<span style="font-size:10px;color:'+phColor+';white-space:nowrap">'+phaseAvg+'% ('+phaseDone+'/'+phaseTaskCount+')</span></span>';
     html+='<span style="display:flex;gap:2px;align-items:center">';
     if(pi>0) html+='<button class="gantt-move-btn" title="Фазу вверх" onclick="event.stopPropagation();moveGanttPhase('+pi+',-1)">&#9650;</button>';
     if(pi<g.phases.length-1) html+='<button class="gantt-move-btn" title="Фазу вниз" onclick="event.stopPropagation();moveGanttPhase('+pi+',1)">&#9660;</button>';
     html+='</span></div>';
-    // phase progress bar across columns
     const phBarW=phaseAvg+'%';
     for(let i=0;i<M;i++){
-      if(i===0) html+='<div class="gantt-cell phase-row" style="position:relative;overflow:visible" colspan="'+M+'"><div style="position:absolute;top:0;left:0;height:100%;width:'+phBarW+';background:'+phColor+';opacity:0.1;border-radius:4px;pointer-events:none"></div></div>';
+      if(i===0) html+='<div class="gantt-cell phase-row" style="position:relative;overflow:visible"><div style="position:absolute;top:0;left:0;height:100%;width:'+phBarW+';background:'+phColor+';opacity:0.1;border-radius:4px;pointer-events:none"></div></div>';
       else html+='<div class="gantt-cell phase-row"></div>';
     }
 
     phase.tasks.forEach((task,ti)=>{
       const prog=task.progress||0;
       const progColor=prog>=100?'var(--green)':prog>0?'var(--gold)':'var(--text3)';
+      const hasSubs=task.subs&&task.subs.length>0;
+      const isExpanded=task._expanded;
 
-      html+='<div class="gantt-label"><span class="gl-progress" style="color:'+progColor+'">'+prog+'%</span>';
+      html+='<div class="gantt-label">';
+      // Progress click to cycle
+      html+='<span class="gl-progress gl-progress-click" style="color:'+progColor+'" onclick="cycleGanttProgress('+pi+','+ti+')" title="Клик = +10%">'+prog+'%</span>';
+      // Move buttons
       html+='<span style="display:flex;flex-direction:column;gap:0;margin-right:2px">';
       if(ti>0) html+='<button class="gantt-move-btn" title="Вверх" onclick="moveGanttTask('+pi+','+ti+',-1)">&#9650;</button>';
       if(ti<phase.tasks.length-1) html+='<button class="gantt-move-btn" title="Вниз" onclick="moveGanttTask('+pi+','+ti+',1)">&#9660;</button>';
       html+='</span>';
-      html+='<span class="gl-name" title="Двойной клик — редактировать" ondblclick="editGanttTask('+pi+','+ti+')">'+task.name+'</span><span class="gl-owner">'+task.owner+'</span>';
-      html+='<button class="gantt-add-btn" title="Добавить задачу после" onclick="addGanttTask('+pi+','+ti+')">+</button></div>';
+      // Expand/collapse for subtasks
+      if(hasSubs) html+='<span style="cursor:pointer;color:var(--text3);font-size:10px;margin-right:2px" onclick="toggleGanttSubs('+pi+','+ti+')">'+(isExpanded?'&#9660;':'&#9654;')+'</span>';
+      // Inline name
+      html+='<input class="gl-inline gl-name" value="'+task.name.replace(/"/g,'&quot;')+'" onblur="inlineGanttName('+pi+','+ti+',this.value)" onkeydown="if(event.key===\'Enter\')this.blur()">';
+      // Inline owner
+      html+='<input class="gl-inline-owner" value="'+task.owner.replace(/"/g,'&quot;')+'" onblur="inlineGanttOwner('+pi+','+ti+',this.value)" onkeydown="if(event.key===\'Enter\')this.blur()">';
+      // Add task / subtask buttons
+      html+='<button class="gantt-add-btn" title="Добавить подзадачу" onclick="addGanttSubtask('+pi+','+ti+')" style="font-size:11px;color:var(--blue)">&#8627;</button>';
+      html+='<button class="gantt-add-btn" title="Добавить задачу после" onclick="addGanttTask('+pi+','+ti+')">+</button>';
+      html+='</div>';
 
+      // Task bar cells
       for(let i=0;i<M;i++){
         html+='<div class="gantt-cell" data-pi="'+pi+'" data-ti="'+ti+'" data-col="'+i+'">';
         if(i>=task.s && i<task.s+task.d){
@@ -1057,24 +1174,51 @@ function renderGantt(){
           else if(isLast) barStyle='left:0;right:4px;border-radius:0 4px 4px 0';
           else barStyle='left:0;right:0;border-radius:0';
           html+='<div class="g-bar '+phase.cls+'" style="'+barStyle+'" data-pi="'+pi+'" data-ti="'+ti+'" ondblclick="editGanttTask('+pi+','+ti+')" onmousedown="startGanttDrag(event,'+pi+','+ti+')">';
-          if(isFirst && prog>0){
-            html+='<div class="g-progress-fill" style="width:'+Math.min(prog,100)+'%"></div>';
-          }
+          if(isFirst && prog>0) html+='<div class="g-progress-fill" style="width:'+Math.min(prog,100)+'%"></div>';
           if(isLast) html+='<div class="g-resize" onmousedown="startGanttResize(event,'+pi+','+ti+')"></div>';
           html+='</div>';
         }
         html+='</div>';
       }
-      });
+
+      // Subtasks
+      if(isExpanded && task.subs){
+        task.subs.forEach((sub,si)=>{
+          const sp=sub.progress||0;
+          const spColor=sp>=100?'var(--green)':sp>0?'var(--gold)':'var(--text3)';
+          html+='<div class="gantt-label subtask-row">';
+          html+='<span class="gl-progress gl-progress-click" style="color:'+spColor+';font-size:8px" onclick="cycleGanttSubProgress('+pi+','+ti+','+si+')" title="Клик = +10%">'+sp+'%</span>';
+          html+='<span style="width:14px"></span>';
+          html+='<span style="color:var(--text3);font-size:9px;margin-right:2px">&#8627;</span>';
+          html+='<input class="gl-inline gl-name" style="font-size:10px;color:var(--text2)" value="'+sub.name.replace(/"/g,'&quot;')+'" onblur="inlineGanttSubName('+pi+','+ti+','+si+',this.value)" onkeydown="if(event.key===\'Enter\')this.blur()">';
+          html+='<input class="gl-inline-owner" value="'+(sub.owner||'').replace(/"/g,'&quot;')+'" onblur="inlineGanttSubOwner('+pi+','+ti+','+si+',this.value)" onkeydown="if(event.key===\'Enter\')this.blur()">';
+          html+='<button class="gantt-add-btn" title="Удалить подзадачу" onclick="deleteGanttSubtask('+pi+','+ti+','+si+')" style="color:var(--red);font-size:11px">&times;</button>';
+          html+='</div>';
+          // Subtask bar cells
+          for(let i=0;i<M;i++){
+            html+='<div class="gantt-cell subtask-row" style="min-height:24px">';
+            if(i>=(sub.s||task.s) && i<(sub.s||task.s)+(sub.d||1)){
+              const isFirst=i===(sub.s||task.s);
+              const isLast=i===(sub.s||task.s)+(sub.d||1)-1;
+              let barStyle='height:14px;top:5px;bottom:auto;opacity:0.6;';
+              if(isFirst&&isLast) barStyle+='left:4px;right:4px;border-radius:3px';
+              else if(isFirst) barStyle+='left:4px;right:0;border-radius:3px 0 0 3px';
+              else if(isLast) barStyle+='left:0;right:4px;border-radius:0 3px 3px 0';
+              else barStyle+='left:0;right:0;border-radius:0';
+              html+='<div class="g-bar '+phase.cls+'" style="'+barStyle+'" onmousedown="startGanttSubDrag(event,'+pi+','+ti+','+si+')">';
+              if(isFirst&&sp>0) html+='<div class="g-progress-fill" style="width:'+Math.min(sp,100)+'%"></div>';
+              html+='</div>';
+            }
+            html+='</div>';
+          }
+        });
+      }
+    });
   });
 
-  html+='</div>';
-
-  html+='</div></div>';
+  html+='</div></div></div>';
 
   // Summary stats
-  let totalTasks=0,doneTasks=0;
-  g.phases.forEach(ph=>ph.tasks.forEach(t=>{totalTasks++;if((t.progress||0)>=100)doneTasks++}));
   html+='<div style="margin-top:12px;display:flex;gap:20px;font-size:12px;color:var(--text2)">';
   html+='<span>Всего задач: <strong style="color:var(--text)">'+totalTasks+'</strong></span>';
   html+='<span>Выполнено: <strong style="color:var(--green)">'+doneTasks+'</strong></span>';
@@ -1082,7 +1226,6 @@ function renderGantt(){
   html+='</div>';
 
   document.getElementById('gantt-content').innerHTML=html;
-
 }
 
 function startGanttDrag(e,pi,ti){
@@ -1255,6 +1398,76 @@ function removeGanttColumn(){
     if(t.s+t.d>maxM) t.d=maxM-t.s;
   }));
   renderGantt();syncToFirebase();
+}
+
+// ============================================================
+// GANTT — INLINE EDITING + SUBTASKS
+// ============================================================
+function inlineGanttName(pi,ti,val){
+  if(STATE.gantt.phases[pi].tasks[ti].name!==val){
+    STATE.gantt.phases[pi].tasks[ti].name=val;syncToFirebase();
+  }
+}
+function inlineGanttOwner(pi,ti,val){
+  if(STATE.gantt.phases[pi].tasks[ti].owner!==val){
+    STATE.gantt.phases[pi].tasks[ti].owner=val;syncToFirebase();
+  }
+}
+function inlineGanttSubName(pi,ti,si,val){
+  if(STATE.gantt.phases[pi].tasks[ti].subs[si].name!==val){
+    STATE.gantt.phases[pi].tasks[ti].subs[si].name=val;syncToFirebase();
+  }
+}
+function inlineGanttSubOwner(pi,ti,si,val){
+  if(!STATE.gantt.phases[pi].tasks[ti].subs[si].owner) STATE.gantt.phases[pi].tasks[ti].subs[si].owner='';
+  if(STATE.gantt.phases[pi].tasks[ti].subs[si].owner!==val){
+    STATE.gantt.phases[pi].tasks[ti].subs[si].owner=val;syncToFirebase();
+  }
+}
+function cycleGanttProgress(pi,ti){
+  const t=STATE.gantt.phases[pi].tasks[ti];
+  t.progress=((t.progress||0)+10)%110;
+  if(t.progress>100)t.progress=0;
+  renderGantt();renderDashboard();syncToFirebase();
+}
+function cycleGanttSubProgress(pi,ti,si){
+  const s=STATE.gantt.phases[pi].tasks[ti].subs[si];
+  s.progress=((s.progress||0)+10)%110;
+  if(s.progress>100)s.progress=0;
+  renderGantt();renderDashboard();syncToFirebase();
+}
+function toggleGanttSubs(pi,ti){
+  STATE.gantt.phases[pi].tasks[ti]._expanded=!STATE.gantt.phases[pi].tasks[ti]._expanded;
+  renderGantt();
+}
+function addGanttSubtask(pi,ti){
+  const task=STATE.gantt.phases[pi].tasks[ti];
+  if(!task.subs) task.subs=[];
+  task.subs.push({name:'Новая подзадача',owner:task.owner,s:task.s,d:task.d,progress:0});
+  task._expanded=true;
+  renderGantt();syncToFirebase();
+}
+function deleteGanttSubtask(pi,ti,si){
+  STATE.gantt.phases[pi].tasks[ti].subs.splice(si,1);
+  renderGantt();syncToFirebase();
+}
+function startGanttSubDrag(e,pi,ti,si){
+  e.preventDefault();
+  const sub=STATE.gantt.phases[pi].tasks[ti].subs[si];
+  const cells=document.querySelectorAll('.gantt-cell.subtask-row');
+  if(!cells.length)return;
+  const cellW=cells[0].offsetWidth;
+  const startX=e.clientX;
+  const origS=sub.s||STATE.gantt.phases[pi].tasks[ti].s;
+  function onMove(ev){
+    const dx=ev.clientX-startX;
+    const dc=Math.round(dx/cellW);
+    sub.s=Math.max(0,Math.min(STATE.gantt.months.length-(sub.d||1), origS+dc));
+    renderGantt();
+  }
+  function onUp(){document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);syncToFirebase()}
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('mouseup',onUp);
 }
 
 // ============================================================
@@ -1532,6 +1745,35 @@ function renderBpmn(){
   document.getElementById('bpmn-content').innerHTML=h;
 }
 
+function renderMiro(){
+  const url=STATE.miroUrl||'';
+  let h='';
+  h+='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">';
+  h+='<span style="font-size:12px;color:var(--text2)">Miro Board URL:</span>';
+  h+='<input id="miro-url-input" style="flex:1;min-width:200px;padding:6px 10px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px" value="'+url.replace(/"/g,'&quot;')+'" placeholder="https://miro.com/app/board/..." onkeydown="if(event.key===\'Enter\')saveMiroUrl()">';
+  h+='<button style="padding:6px 14px;border-radius:6px;border:1px solid var(--gold);background:var(--card);color:var(--gold);cursor:pointer;font-size:12px" onclick="saveMiroUrl()">Встроить</button>';
+  if(url) h+='<button style="padding:6px 14px;border-radius:6px;border:1px solid var(--red);background:var(--card);color:var(--red);cursor:pointer;font-size:12px" onclick="STATE.miroUrl=\'\';syncToFirebase();renderMiro()">Убрать</button>';
+  h+='</div>';
+  if(url){
+    // Convert board URL to embed URL
+    let embedUrl=url;
+    if(url.includes('miro.com/app/board/') && !url.includes('live-embed')){
+      const boardId=url.split('/board/')[1]?.split(/[/?#]/)[0];
+      if(boardId) embedUrl='https://miro.com/app/live-embed/'+boardId+'/?autoplay=yep';
+    }
+    h+='<div class="miro-frame" style="margin-top:12px"><iframe src="'+embedUrl+'" allow="fullscreen; clipboard-read; clipboard-write" allowfullscreen></iframe></div>';
+  } else {
+    h+='<div style="margin-top:12px;padding:20px;border:1px dashed var(--border);border-radius:var(--radius);text-align:center;color:var(--text3);font-size:13px">Вставьте ссылку на Miro-борд, чтобы встроить его сюда. Поддерживается формат: https://miro.com/app/board/...</div>';
+  }
+  document.getElementById('miro-container').innerHTML=h;
+}
+function saveMiroUrl(){
+  const val=document.getElementById('miro-url-input').value.trim();
+  STATE.miroUrl=val;
+  syncToFirebase();
+  renderMiro();
+}
+
 function goToRaciProcess(pi){
   // Switch to RACI tab and highlight the process
   document.querySelectorAll('.nav-btn').forEach(x=>x.classList.remove('active'));
@@ -1700,6 +1942,8 @@ function loadFromFirebase(callback) {
         Object.assign(STATE.budget, snap.state.budget || {});
         if (snap.state.risks) STATE.risks = snap.state.risks;
         if (snap.state.faq) STATE.faq = snap.state.faq;
+        if (snap.state.connections) Object.assign(STATE.connections, snap.state.connections);
+        if (snap.state.miroUrl !== undefined) STATE.miroUrl = snap.state.miroUrl;
         setSyncStatus('synced', 'Синхронизировано');
       }
       if (callback) callback();
@@ -1728,6 +1972,8 @@ function startRealtimeListener() {
         Object.assign(STATE.budget, msg.data.state.budget || {});
         if (msg.data.state.risks) STATE.risks = msg.data.state.risks;
         if (msg.data.state.faq) STATE.faq = msg.data.state.faq;
+        if (msg.data.state.connections) Object.assign(STATE.connections, msg.data.state.connections);
+        if (msg.data.state.miroUrl !== undefined) STATE.miroUrl = msg.data.state.miroUrl;
         renderAll(true);
         setSyncStatus('synced', 'Обновлено от ' + msg.data.editor);
         setTimeout(() => { ignoreNext = false; }, 100);
@@ -1869,6 +2115,7 @@ function renderAll(fromRemote) {
   renderRisks();
   renderFaq();
   renderFrameworks();
+  renderMiro();
   if (!fromRemote && !ignoreNext) syncToFirebase();
 }
 
