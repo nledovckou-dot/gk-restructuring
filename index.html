@@ -1170,8 +1170,14 @@ function renderDelta(){
 let raciFilter='';
 function renderRaci(){
   const r=STATE.raci;
-  // Filter toolbar
+  // Action toolbar
   let h='<div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
+  h+='<button style="padding:4px 10px;border-radius:6px;border:1px solid var(--green);background:var(--card);color:var(--green);cursor:pointer;font-size:12px" onclick="addRaciProcess()">+ Процесс</button>';
+  h+='<button style="padding:4px 10px;border-radius:6px;border:1px solid var(--blue);background:var(--card);color:var(--blue);cursor:pointer;font-size:12px" onclick="addRaciRole()">+ Роль</button>';
+  h+='<span style="margin-left:8px;font-size:11px;color:var(--text3)">Двойной клик на название = редактировать</span>';
+  h+='</div>';
+  // Filter toolbar
+  h+='<div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
   h+='<span style="font-size:12px;color:var(--text2)">Фильтр:</span>';
   h+='<button style="padding:4px 10px;border-radius:6px;border:1px solid '+(raciFilter===''?'var(--gold)':'var(--border)')+';background:'+(raciFilter===''?'var(--card2)':'var(--card)')+';color:'+(raciFilter===''?'var(--gold)':'var(--text2)')+';cursor:pointer;font-size:12px" onclick="raciFilter=\'\';renderRaci()">Все</button>';
   r.roles.forEach((role,ri)=>{
@@ -1181,15 +1187,17 @@ function renderRaci(){
   h+='</div>';
 
   h+='<div style="overflow-x:auto"><table class="data-table"><thead><tr><th>Процесс</th>';
-  r.roles.forEach(role=>h+='<th style="text-align:center">'+role+'</th>');
+  r.roles.forEach((role,ri)=>h+='<th style="text-align:center;cursor:pointer" ondblclick="editRaciRole('+ri+')" title="Двойной клик — редактировать">'+role+'</th>');
   h+='</tr></thead><tbody>';
   r.processes.forEach((p,pi)=>{
-    // If filter active, only show rows where this person has R or A
     if(raciFilter){
       const ri=r.roles.indexOf(raciFilter);
       if(ri===-1||!(p.v[ri]==='R'||p.v[ri]==='A'))return;
     }
-    h+='<tr><td style="font-weight:600">'+p.name+'</td>';
+    h+='<tr><td style="font-weight:600;cursor:pointer;position:relative" ondblclick="editRaciProcess('+pi+')">';
+    h+='<span>'+p.name+'</span>';
+    h+='<button style="position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;opacity:0.4" onclick="deleteRaciProcess('+pi+')" title="Удалить">&times;</button>';
+    h+='</td>';
     p.v.forEach((val,vi)=>{h+='<td class="raci-cell raci-'+val+'" onclick="STATE.raci.processes['+pi+'].v['+vi+']=\'RACI\'[\'RACI\'.indexOf(STATE.raci.processes['+pi+'].v['+vi+'])+1&3];renderRaci();syncToFirebase()">'+val+'</td>'});
     h+='</tr>';
   });
@@ -1202,6 +1210,31 @@ function renderRaci(){
     h+='<div style="margin-top:8px;font-size:12px;color:var(--gold)">'+raciFilter+': <strong>'+rCount+'</strong> задач выполняет (R), <strong>'+aCount+'</strong> решает (A)</div>';
   }
   document.getElementById('raci-content').innerHTML=h;
+}
+function editRaciProcess(pi){
+  const name=prompt('Название процесса:',STATE.raci.processes[pi].name);
+  if(name!==null&&name!==''){ STATE.raci.processes[pi].name=name; renderRaci();syncToFirebase(); }
+}
+function deleteRaciProcess(pi){
+  if(!confirm('Удалить «'+STATE.raci.processes[pi].name+'»?'))return;
+  STATE.raci.processes.splice(pi,1); renderRaci();syncToFirebase();
+}
+function addRaciProcess(){
+  const name=prompt('Название нового процесса:');
+  if(!name)return;
+  STATE.raci.processes.push({name:name, v:STATE.raci.roles.map(()=>'I')});
+  renderRaci();syncToFirebase();
+}
+function editRaciRole(ri){
+  const name=prompt('Название роли:',STATE.raci.roles[ri]);
+  if(name!==null&&name!==''){ STATE.raci.roles[ri]=name; renderRaci();syncToFirebase(); }
+}
+function addRaciRole(){
+  const name=prompt('Название новой роли:');
+  if(!name)return;
+  STATE.raci.roles.push(name);
+  STATE.raci.processes.forEach(p=>p.v.push('I'));
+  renderRaci();syncToFirebase();
 }
 
 function renderBudget(){
