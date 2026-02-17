@@ -152,8 +152,12 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
 .tree-conn-btn button{padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text2);cursor:pointer;font-size:11px;transition:all .2s}
 .tree-conn-btn button:hover{border-color:var(--gold);color:var(--gold)}
 .tree-conn-btn button.active{border-color:var(--gold);color:var(--gold);background:var(--card2)}
-.miro-frame{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-top:16px}
-.miro-frame iframe{width:100%;height:500px;border:none}
+.miro-frame{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-top:12px;position:relative}
+.miro-frame iframe{width:100%;height:500px;border:none;transition:height .3s}
+.miro-frame.miro-fullscreen{position:fixed;top:0;left:0;right:0;bottom:0;z-index:999;border-radius:0;margin:0;border:none}
+.miro-frame.miro-fullscreen iframe{height:100%}
+.miro-expand-btn{position:absolute;top:8px;right:8px;z-index:5;padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:rgba(26,22,32,0.9);color:var(--text2);cursor:pointer;font-size:12px;transition:all .2s;backdrop-filter:blur(4px)}
+.miro-expand-btn:hover{border-color:var(--gold);color:var(--gold)}
 
 /* === RISK REGISTER === */
 .risk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
@@ -1759,7 +1763,7 @@ function renderMiro(){
       const boardId=url.split('/board/')[1]?.split(/[/?#]/)[0];
       if(boardId) embedUrl='https://miro.com/app/live-embed/'+boardId+'/?autoplay=yep';
     }
-    h+='<div class="miro-frame" style="margin-top:12px"><iframe src="'+embedUrl+'" allow="fullscreen; clipboard-read; clipboard-write" allowfullscreen></iframe></div>';
+    h+='<div class="miro-frame" id="miro-frame" style="margin-top:12px"><button class="miro-expand-btn" onclick="toggleMiroFullscreen()">&#x26F6; Полный экран</button><iframe src="'+embedUrl+'" allow="fullscreen; clipboard-read; clipboard-write" allowfullscreen></iframe></div>';
   } else {
     h+='<div style="margin-top:12px;padding:20px;border:1px dashed var(--border);border-radius:var(--radius);text-align:center;color:var(--text3);font-size:13px">Вставьте ссылку на Miro-борд, чтобы встроить его сюда. Поддерживается формат: https://miro.com/app/board/...</div>';
   }
@@ -1771,6 +1775,23 @@ function saveMiroUrl(){
   syncToFirebase();
   renderMiro();
 }
+function toggleMiroFullscreen(){
+  const frame=document.getElementById('miro-frame');
+  if(!frame)return;
+  frame.classList.toggle('miro-fullscreen');
+  const btn=frame.querySelector('.miro-expand-btn');
+  if(btn) btn.textContent=frame.classList.contains('miro-fullscreen')?'✕ Свернуть':'⛶ Полный экран';
+}
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'){
+    const frame=document.getElementById('miro-frame');
+    if(frame&&frame.classList.contains('miro-fullscreen')){
+      frame.classList.remove('miro-fullscreen');
+      const btn=frame.querySelector('.miro-expand-btn');
+      if(btn) btn.textContent='⛶ Полный экран';
+    }
+  }
+});
 
 function goToRaciProcess(pi){
   // Switch to RACI tab and highlight the process
