@@ -33,7 +33,10 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
 .section{display:none;animation:fadeIn .3s ease}
 .section.active{display:block}
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-.section-header{margin-bottom:28px}
+.section-header{margin-bottom:28px;position:relative}
+.fullscreen-btn{position:absolute;top:0;right:0;background:var(--card);border:1px solid var(--border);color:var(--text3);padding:6px 10px;border-radius:6px;cursor:pointer;font-size:12px;transition:all .2s}
+.fullscreen-btn:hover{border-color:var(--gold);color:var(--gold)}
+.section.is-fullscreen{position:fixed;top:0;left:0;right:0;bottom:0;z-index:500;background:var(--bg);overflow:auto;padding:20px;margin:0}
 .section-header h2{font-size:26px;font-weight:700;margin-bottom:6px}
 .section-header p{font-size:14px;color:var(--text2);line-height:1.5}
 .section-header .tag{display:inline-block;font-size:11px;background:var(--card2);color:var(--gold);padding:3px 10px;border-radius:12px;margin-right:6px;margin-top:8px}
@@ -269,7 +272,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
 <body>
 <button id="mobile-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">&#9776;</button>
 <nav id="sidebar" onclick="if(window.innerWidth<=900&&event.target.classList.contains('nav-btn'))this.classList.remove('open')">
-  <h1>Проект реструктуризации<br>ГК → Family Office <span style="font-size:10px;color:var(--text3);font-weight:400">v3.8</span></h1>
+  <h1>Проект реструктуризации<br>ГК → Family Office <span style="font-size:10px;color:var(--text3);font-weight:400">v3.9</span></h1>
   <div class="nav-group">
     <div class="nav-group-title">Обзор</div>
     <button class="nav-btn active" data-section="dashboard">Dashboard</button>
@@ -813,7 +816,10 @@ function renderTree(containerId, treeData, treeName) {
     const cls=node.color||'';
     let badge='';
     if(node.badge) badge=`<span class="tn-badge ${node.badgeCls||''}">${node.badge}</span>`;
-    nodesHtml+=`<div class="tn ${cls}" style="left:${px(node)}px;top:${py(node)}px;width:${nodeW}px" onclick="editTreeNode('${treeName}','${node.id}')" title="Клик для редактирования">${badge}<div class="tn-title">${node.label}</div>${node.sub?'<div class="tn-sub">'+node.sub+'</div>':''}${node.people?'<div class="tn-people">'+node.people+'</div>':''}</div>`;
+    const ox=node._ox||0, oy=node._oy||0;
+    const funcCount=node.raciLinks?node.raciLinks.length:0;
+    const funcBadge=funcCount?`<div style="font-size:9px;color:var(--blue);margin-top:2px">${funcCount} функц.</div>`:'';
+    nodesHtml+=`<div class="tn ${cls}" style="left:${px(node)+ox}px;top:${py(node)+oy}px;width:${nodeW}px;cursor:grab" onclick="editTreeNode('${treeName}','${node.id}')" onmousedown="startNodeDrag(event,'${treeName}','${node.id}',${px(node)+ox},${py(node)+oy})" title="Клик = редактировать, перетащить = переместить">${badge}<div class="tn-title">${node.label}</div>${node.sub?'<div class="tn-sub">'+node.sub+'</div>':''}${node.people?'<div class="tn-people">'+node.people+'</div>':''}${funcBadge}</div>`;
   }
   walk(tree);
 
@@ -865,6 +871,41 @@ function exportTreeSVG(containerId,treeName){
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=treeName+'-structure.svg';a.click();
 }
 
+let nodeDrag=null;
+function startNodeDrag(e,treeName,nodeId,startX,startY){
+  if(e.button!==0)return;
+  e.preventDefault();
+  const el=e.currentTarget;
+  const z=treeZoom['tree-'+treeName]||1;
+  const startMX=e.clientX, startMY=e.clientY;
+  let moved=false;
+  function onMove(ev){
+    const dx=(ev.clientX-startMX)/z, dy=(ev.clientY-startMY)/z;
+    if(Math.abs(dx)+Math.abs(dy)>4) moved=true;
+    if(!moved)return;
+    el.style.left=(startX+dx)+'px';
+    el.style.top=(startY+dy)+'px';
+    el.style.opacity='0.7';
+    el.style.zIndex='10';
+    nodeDrag={treeName,nodeId,dx,dy};
+  }
+  function onUp(){
+    document.removeEventListener('mousemove',onMove);
+    document.removeEventListener('mouseup',onUp);
+    el.style.opacity='';el.style.zIndex='';
+    if(moved&&nodeDrag){
+      const tree=STATE.trees[treeName];
+      const node=findNode(tree,nodeId);
+      if(node){ node._ox=(node._ox||0)+nodeDrag.dx; node._oy=(node._oy||0)+nodeDrag.dy; }
+      syncToFirebase();
+    }
+    nodeDrag=null;
+    if(moved) e.target.onclick=null; // prevent click after drag
+  }
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('mouseup',onUp);
+}
+
 function findNode(tree,id){
   if(tree.id===id)return tree;
   if(tree.children)for(const c of tree.children){const r=findNode(c,id);if(r)return r}
@@ -883,12 +924,22 @@ function editTreeNode(treeName,nodeId){
   const colors=[{cls:'',label:'Серый (по умолчанию)'},{cls:'tn-gold',label:'Золотой (собственники)'},{cls:'tn-red',label:'Красный (контроль)'},{cls:'tn-green',label:'Зелёный (Никита)'},{cls:'tn-blue',label:'Синий (Владимир)'},{cls:'tn-purple',label:'Фиолетовый (совместные)'}];
   let colorOpts='';
   colors.forEach(c=>{colorOpts+=`<option value="${c.cls}" ${(node.color||'')===c.cls?'selected':''}>${c.label}</option>`});
+  // RACI functions linked to this node
+  const nodeFuncs=node.raciLinks||[];
+  let raciChecks='<div style="max-height:150px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:8px;margin-top:4px">';
+  STATE.raci.processes.forEach((p,pi)=>{
+    const checked=nodeFuncs.includes(pi)?'checked':'';
+    raciChecks+=`<label style="display:block;font-size:11px;color:var(--text2);padding:2px 0;cursor:pointer"><input type="checkbox" class="raci-link-cb" value="${pi}" ${checked} style="margin-right:6px">${p.name}</label>`;
+  });
+  raciChecks+='</div>';
   openModal(`<h3>Редактировать узел</h3>
-    <label>Название</label><input id="tn-label" value="${node.label||''}">
-    <label>Подпись (роль/функция)</label><input id="tn-sub" value="${node.sub||''}">
-    <label>Люди</label><input id="tn-people" value="${node.people||''}" placeholder="Иван, Екатерина">
+    <label>Должность / Название</label><input id="tn-label" value="${node.label||''}">
+    <label>Роль / Функция</label><input id="tn-sub" value="${node.sub||''}">
+    <label>Люди (ФИО)</label><input id="tn-people" value="${node.people||''}" placeholder="Иванов И.И., Петрова Е.А.">
     <label>Цвет</label><select id="tn-color">${colorOpts}</select>
     <label>Бейдж</label><input id="tn-badge" value="${node.badge||''}" placeholder="Доход / Ремонт / Стройка">
+    <label>Функции из RACI <span style="font-size:10px;color:var(--text3)">(отметьте процессы, за которые отвечает этот узел)</span></label>
+    ${raciChecks}
     <div class="modal-actions">
       ${parent?'<button class="btn btn-danger" onclick="deleteTreeNode(\''+treeName+'\',\''+nodeId+'\')">Удалить</button>':''}
       <button class="btn btn-secondary" onclick="addTreeChild('${treeName}','${nodeId}')">+ Дочерний</button>
@@ -911,6 +962,9 @@ function saveTreeNode(treeName,nodeId){
     else if(b.toLowerCase().includes('строй'))node.badgeCls='badge-construction';
     else node.badgeCls='';
   }
+  // Save RACI links
+  const cbs=document.querySelectorAll('.raci-link-cb:checked');
+  node.raciLinks=Array.from(cbs).map(cb=>parseInt(cb.value));
   closeModal();
   renderTree('tree-'+treeName,STATE.trees[treeName],treeName);
   syncToFirebase();
@@ -1235,16 +1289,20 @@ let raciShowOverlap=false;
 function renderRaci(){
   const r=STATE.raci;
 
-  // Compute overlaps: roles with R in 3+ processes = overloaded
-  const overloadMap={}; // ri -> count of R
-  const overloadRows=new Set(); // process indices where overloaded role has R
-  r.roles.forEach((role,ri)=>{
-    const rCount=r.processes.filter(p=>p.v[ri]==='R').length;
-    overloadMap[ri]=rCount;
-    if(raciShowOverlap && rCount>=3){
-      r.processes.forEach((p,pi)=>{ if(p.v[ri]==='R') overloadRows.add(pi); });
-    }
-  });
+  // Compute row-level overlaps: multiple R in same row = conflict
+  const rowConflicts={}; // pi -> {type, detail}
+  if(raciShowOverlap){
+    r.processes.forEach((p,pi)=>{
+      const rIndices=[], aIndices=[];
+      p.v.forEach((val,vi)=>{ if(val==='R') rIndices.push(vi); if(val==='A') aIndices.push(vi); });
+      const issues=[];
+      if(rIndices.length>1) issues.push('Несколько R: '+rIndices.map(i=>r.roles[i]).join(', ')+' — конфликт ответственности');
+      if(rIndices.length===0) issues.push('Нет R — процесс без исполнителя');
+      if(aIndices.length>1) issues.push('Несколько A: '+aIndices.map(i=>r.roles[i]).join(', ')+' — конфликт решений');
+      if(aIndices.length===0) issues.push('Нет A — процесс без ответственного за решения');
+      if(issues.length) rowConflicts[pi]=issues;
+    });
+  }
 
   // Action toolbar
   let h='<div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
@@ -1267,8 +1325,7 @@ function renderRaci(){
 
   h+='<div style="overflow-x:auto"><table class="data-table"><thead><tr><th>Процесс</th>';
   r.roles.forEach((role,ri)=>{
-    const isOverloaded=raciShowOverlap&&overloadMap[ri]>=3;
-    h+='<th style="text-align:center;cursor:pointer'+(isOverloaded?';color:var(--red);background:rgba(212,64,64,0.1)':'')+'" ondblclick="editRaciRole('+ri+')" title="'+(isOverloaded?'Перегрузка: R в '+overloadMap[ri]+' процессах!':'Двойной клик — редактировать')+'">'+role+(isOverloaded?' <span style="font-size:9px">'+overloadMap[ri]+'R</span>':'')+'</th>';
+    h+='<th style="text-align:center;cursor:pointer" ondblclick="editRaciRole('+ri+')" title="Двойной клик — редактировать">'+role+'</th>';
   });
   h+='</tr></thead><tbody>';
   r.processes.forEach((p,pi)=>{
@@ -1280,18 +1337,20 @@ function renderRaci(){
         if(!hasSub)return;
       }
     }
-    const isHighlighted=raciShowOverlap&&overloadRows.has(pi);
+    const hasConflict=raciShowOverlap&&rowConflicts[pi];
     const hasSubs=p.subs&&p.subs.length>0;
     const isExpanded=p._expanded;
-    h+='<tr style="'+(isHighlighted?'background:rgba(212,64,64,0.08)':'')+'"><td style="font-weight:600;cursor:pointer;position:relative" ondblclick="editRaciProcess('+pi+')">';
-    if(hasSubs||true) h+='<span style="display:inline-block;width:16px;cursor:pointer;color:var(--text3);font-size:10px" onclick="event.stopPropagation();toggleRaciSubs('+pi+')">'+(isExpanded?'&#9660;':'&#9654;')+'</span>';
+    h+='<tr style="'+(hasConflict?'background:rgba(212,64,64,0.08)':'')+'" '+(hasConflict?'title="'+rowConflicts[pi].join('; ')+'"':'')+'><td style="font-weight:600;cursor:pointer;position:relative" ondblclick="editRaciProcess('+pi+')">';
+    h+='<span style="display:inline-block;width:16px;cursor:pointer;color:var(--text3);font-size:10px" onclick="event.stopPropagation();toggleRaciSubs('+pi+')">'+(isExpanded?'&#9660;':'&#9654;')+'</span>';
     h+='<span>'+p.name+'</span>';
+    if(hasConflict) h+='<span style="color:var(--red);font-size:10px;margin-left:6px">&#9888;</span>';
     h+='<button style="position:absolute;right:24px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--green);cursor:pointer;font-size:14px;opacity:0.5" onclick="event.stopPropagation();addRaciSub('+pi+')" title="+ подпроцесс">+</button>';
     h+='<button style="position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;opacity:0.4" onclick="deleteRaciProcess('+pi+')" title="Удалить">&times;</button>';
     h+='</td>';
     p.v.forEach((val,vi)=>{
-      const cellOverload=raciShowOverlap&&val==='R'&&overloadMap[vi]>=3;
-      h+='<td class="raci-cell raci-'+val+'" style="'+(cellOverload?'box-shadow:inset 0 0 0 2px var(--red)':'')+'" onclick="STATE.raci.processes['+pi+'].v['+vi+']=\'RACI\'[\'RACI\'.indexOf(STATE.raci.processes['+pi+'].v['+vi+'])+1&3];renderRaci();syncToFirebase()">'+val+'</td>';
+      const rCount=p.v.filter(v=>v==='R').length;
+      const cellConflict=raciShowOverlap&&val==='R'&&rCount>1;
+      h+='<td class="raci-cell raci-'+val+'" style="'+(cellConflict?'box-shadow:inset 0 0 0 2px var(--red)':'')+'" onclick="STATE.raci.processes['+pi+'].v['+vi+']=\'RACI\'[\'RACI\'.indexOf(STATE.raci.processes['+pi+'].v['+vi+'])+1&3];renderRaci();syncToFirebase()">'+val+'</td>';
     });
     h+='</tr>';
     // Sub-processes
@@ -1318,13 +1377,14 @@ function renderRaci(){
     h+='<div style="margin-top:8px;font-size:12px;color:var(--gold)">'+raciFilter+': <strong>'+rCount+'</strong> задач выполняет (R), <strong>'+aCount+'</strong> решает (A)</div>';
   }
   if(raciShowOverlap){
+    const conflictCount=Object.keys(rowConflicts).length;
     h+='<div style="margin-top:12px;padding:10px;background:rgba(212,64,64,0.08);border:1px solid var(--red);border-radius:8px;font-size:12px">';
-    h+='<strong style="color:var(--red)">Анализ пересечений:</strong><br>';
-    r.roles.forEach((role,ri)=>{
-      if(overloadMap[ri]>=3) h+='<span style="color:var(--red)">'+role+'</span> — R в '+overloadMap[ri]+' процессах (перегрузка)<br>';
+    h+='<strong style="color:var(--red)">Анализ пересечений по строкам ('+conflictCount+' проблем):</strong><br>';
+    if(conflictCount===0) h+='<span style="color:var(--green)">Проблем не обнаружено — каждый процесс имеет ровно одного R и одного A</span>';
+    Object.keys(rowConflicts).forEach(pi=>{
+      h+='<div style="margin-top:4px"><span style="color:var(--gold)">'+r.processes[pi].name+'</span>: ';
+      h+=rowConflicts[pi].map(s=>'<span style="color:var(--red)">'+s+'</span>').join('; ')+'</div>';
     });
-    const noOverlap=!r.roles.some((role,ri)=>overloadMap[ri]>=3);
-    if(noOverlap) h+='<span style="color:var(--green)">Перегрузок не обнаружено (порог: 3+ процессов с R у одного лица)</span>';
     h+='</div>';
   }
 
@@ -1770,7 +1830,33 @@ window.addEventListener('beforeunload', () => {
 // ============================================================
 // RENDER ALL
 // ============================================================
+function toggleFullscreen(sectionId){
+  const el=document.getElementById(sectionId);
+  el.classList.toggle('is-fullscreen');
+  const btn=el.querySelector('.fullscreen-btn');
+  if(btn) btn.textContent=el.classList.contains('is-fullscreen')?'Выйти (Esc)':'Полный экран';
+}
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    const fs=document.querySelector('.section.is-fullscreen');
+    if(fs){fs.classList.remove('is-fullscreen');const b=fs.querySelector('.fullscreen-btn');if(b)b.textContent='Полный экран';}
+  }
+});
+
 function renderAll(fromRemote) {
+  // Add fullscreen buttons to all sections
+  document.querySelectorAll('.section-header').forEach(sh=>{
+    if(!sh.querySelector('.fullscreen-btn')){
+      const sec=sh.closest('.section');
+      if(sec){
+        const btn=document.createElement('button');
+        btn.className='fullscreen-btn';
+        btn.textContent='Полный экран';
+        btn.onclick=()=>toggleFullscreen(sec.id);
+        sh.appendChild(btn);
+      }
+    }
+  });
   renderDashboard();
   renderTree('tree-asis', STATE.trees.asis, 'asis');
   renderTree('tree-transition', STATE.trees.transition, 'transition');
